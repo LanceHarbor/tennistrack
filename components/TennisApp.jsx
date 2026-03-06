@@ -40,7 +40,9 @@ const TennisApp = () => {
     ustaNumber: '',
     currentUTR: '',
     goalUTR: '',
-    goalDate: ''
+    goalDate: '',
+    playerCode: '', // Code parents use to link to this kid
+    parentLinkedChild: null // For parents: { name, playerCode, id }
   });
 
   // In-memory save (localStorage not available in artifact environment)
@@ -239,6 +241,25 @@ const TennisApp = () => {
     { id: 4, user: 'Coach Sarah', message: 'Sure, I\'ll focus on his two-handed technique', time: '10:20 AM', emoji: '👩‍🏫' },
   ]);
   const [coachChatInput, setCoachChatInput] = useState('');
+
+  // Academy Group Classes
+  const [academyClasses, setAcademyClasses] = useState([
+    { id: 1, name: 'Elite', description: '6+ UTR - Advanced competitive players', minUTR: 6.0, color: 'from-yellow-400 to-amber-600', icon: '⭐', slots: [
+      { id: 101, day: 'Monday', time: '4:00 PM', duration: 90, maxSpots: 8, signedUp: ['Emma Johnson'] },
+      { id: 102, day: 'Wednesday', time: '4:00 PM', duration: 90, maxSpots: 8, signedUp: [] },
+      { id: 103, day: 'Friday', time: '4:00 PM', duration: 90, maxSpots: 8, signedUp: ['Emma Johnson'] },
+    ]},
+    { id: 2, name: 'Next Gen', description: 'Intermediate players building their game', minUTR: 3.0, color: 'from-cyan-400 to-blue-600', icon: '🚀', slots: [
+      { id: 201, day: 'Tuesday', time: '4:00 PM', duration: 75, maxSpots: 10, signedUp: ['Alex Rivera'] },
+      { id: 202, day: 'Thursday', time: '4:00 PM', duration: 75, maxSpots: 10, signedUp: ['Alex Rivera'] },
+      { id: 203, day: 'Saturday', time: '10:00 AM', duration: 90, maxSpots: 10, signedUp: [] },
+    ]},
+    { id: 3, name: 'Up & Coming Stars', description: 'Beginner-focused development program', minUTR: 0, color: 'from-green-400 to-emerald-600', icon: '🌟', slots: [
+      { id: 301, day: 'Monday', time: '5:30 PM', duration: 60, maxSpots: 12, signedUp: [] },
+      { id: 302, day: 'Wednesday', time: '5:30 PM', duration: 60, maxSpots: 12, signedUp: [] },
+      { id: 303, day: 'Saturday', time: '11:30 AM', duration: 60, maxSpots: 12, signedUp: [] },
+    ]},
+  ]);
 
   // Add new match modal state
   const [showAddMatch, setShowAddMatch] = useState(false);
@@ -514,6 +535,17 @@ const TennisApp = () => {
     setUserRole(finalRole);
     setIsLoggedIn(true);
     setSignUpStep(1);
+    
+    // Generate player code for students
+    if (finalRole === 'player') {
+      const pCode = 'PLAYER-' + Math.random().toString(36).substring(2, 7).toUpperCase();
+      setPlayerInfo(prev => ({...prev, playerCode: pCode}));
+    }
+    
+    // If parent entered a player code, link to that child
+    if (finalRole === 'parent' && playerInfo.parentLinkedChild) {
+      // Already set during signup form
+    }
     
     // If student entered an academy code during signup, connect them
     if (playerInfo.academyCode) {
@@ -847,15 +879,28 @@ const TennisApp = () => {
             )}
 
             {isSignUp && loginForm.role === 'parent' && (
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">Academy Code</label>
-                <input
-                  type="text"
-                  value={playerInfo.academyCode || ''}
-                  onChange={(e) => setPlayerInfo({...playerInfo, academyCode: e.target.value.toUpperCase()})}
-                  placeholder="Enter your child's academy code"
-                  className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400 transition-colors"
-                />
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Academy Code</label>
+                  <input
+                    type="text"
+                    value={playerInfo.academyCode || ''}
+                    onChange={(e) => setPlayerInfo({...playerInfo, academyCode: e.target.value.toUpperCase()})}
+                    placeholder="Enter your child's academy code"
+                    className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Child's Player Code</label>
+                  <input
+                    type="text"
+                    value={playerInfo.parentLinkedChild?.playerCode || ''}
+                    onChange={(e) => setPlayerInfo({...playerInfo, parentLinkedChild: { name: 'Emma Johnson', playerCode: e.target.value.toUpperCase(), id: 1 }})}
+                    placeholder="e.g. PLAYER-X7K9M"
+                    className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400 transition-colors"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Get this code from your child's profile to link your accounts</p>
+                </div>
               </div>
             )}
 
@@ -1007,7 +1052,9 @@ const TennisApp = () => {
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
           <SidebarItem icon={<Target />} label="Dashboard" view="dashboard" />
           <SidebarItem icon={<Calendar />} label="Calendar" view="calendar" />
-          {(userRole === 'player' || userRole === 'parent') && (
+          
+          {/* Player-only items */}
+          {userRole === 'player' && (
             <>
               <SidebarItem icon={<Trophy />} label="Match Records" view="matches" />
               <SidebarItem icon={<Star />} label="Achievements" view="achievements" />
@@ -1015,22 +1062,36 @@ const TennisApp = () => {
               <SidebarItem icon={<Search />} label="Scouting" view="scouting" />
               <SidebarItem icon={<BookOpen />} label="Journal" view="journal" />
               <SidebarItem icon={<Clock />} label="My Schedule" view="scheduler" />
+              <SidebarItem icon={<Dumbbell />} label="Warmup" view="warmup" />
             </>
           )}
+          
+          {/* Parent items - view-only versions */}
+          {userRole === 'parent' && (
+            <>
+              <SidebarItem icon={<Trophy />} label="Match Records" view="matches" />
+              <SidebarItem icon={<Crosshair />} label="Goals" view="goals" />
+              <SidebarItem icon={<BookOpen />} label="Journal" view="journal" />
+              <SidebarItem icon={<Clock />} label="Schedule" view="scheduler" />
+              <SidebarItem icon={<DollarSign />} label="Expenses" view="expenses" />
+            </>
+          )}
+          
           <SidebarItem icon={<MessageSquare />} label="Coach Notes" view="notes" />
-          <SidebarItem icon={<Users />} label="Team Chat" view="chat" />
+          {userRole !== 'coach' && <SidebarItem icon={<Users />} label="Team Chat" view="chat" />}
+          
+          {/* Coach items */}
           {userRole === 'coach' && (
             <>
               <SidebarItem icon={<Users />} label="My Students" view="students" />
               <SidebarItem icon={<ClipboardList />} label="Drills" view="drills" />
               <SidebarItem icon={<Clock />} label="Scheduler" view="scheduler" />
+              <SidebarItem icon={<BookOpen />} label="Classes" view="classes" />
+              <SidebarItem icon={<Users />} label="Team Chat" view="chat" />
               <SidebarItem icon={<Bell />} label="Notifications" view="notifications" />
             </>
           )}
-          {userRole === 'parent' && (
-            <SidebarItem icon={<DollarSign />} label="Expenses" view="expenses" />
-          )}
-          <SidebarItem icon={<Dumbbell />} label="Warmup" view="warmup" />
+          
           <SidebarItem icon={<User />} label="Profile" view="profile" />
           <SidebarItem icon={<Image />} label="Media" view="media" />
         </div>
@@ -2714,13 +2775,15 @@ const TennisApp = () => {
     return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-light text-white">Match Records</h2>
-        <button 
-          onClick={() => setShowAddMatch(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors">
-          <Plus className="w-4 h-4" />
-          Add Match
-        </button>
+        <h2 className="text-2xl font-light text-white">{userRole === 'parent' ? "Child's Matches" : "Match Records"}</h2>
+        {userRole !== 'parent' && (
+          <button 
+            onClick={() => setShowAddMatch(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors">
+            <Plus className="w-4 h-4" />
+            Add Match
+          </button>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -3930,16 +3993,18 @@ const TennisApp = () => {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-light text-white">Tennis Journal</h2>
-            <p className="text-gray-400 mt-1">Reflect on your journey</p>
+            <h2 className="text-3xl font-light text-white">{userRole === 'parent' ? "Child's Journal" : "Tennis Journal"}</h2>
+            <p className="text-gray-400 mt-1">{userRole === 'parent' ? 'View your child\'s reflections' : 'Reflect on your journey'}</p>
           </div>
-          <button
-            onClick={() => setShowNewEntry(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Entry
-          </button>
+          {userRole !== 'parent' && (
+            <button
+              onClick={() => setShowNewEntry(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Entry
+            </button>
+          )}
         </div>
 
         {showNewEntry && (
@@ -4614,7 +4679,85 @@ const TennisApp = () => {
       );
     }
 
-    // Player/Parent Profile
+    // Parent Profile - simple and clean
+    if (userRole === 'parent') {
+      return (
+        <div className="space-y-4">
+          <h2 className="text-2xl font-light text-white">Parent Profile</h2>
+
+          {/* Profile Card */}
+          <div className="bg-gradient-to-br from-gray-900 via-gray-900 to-purple-500/10 rounded-2xl border border-gray-800 p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="text-5xl">{userSettings.profileEmoji}</div>
+              <div>
+                <div className="text-2xl font-light text-white">{userSettings.username || 'Parent'}</div>
+                <div className="text-purple-400 text-sm">Parent Account</div>
+              </div>
+            </div>
+
+            {/* Academy badge */}
+            {academy.connected && (
+              <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-cyan-400/5 rounded-lg border border-cyan-400/20">
+                <span className="text-lg">{academy.emoji}</span>
+                <div>
+                  <div className="text-cyan-400 text-sm font-medium">{academy.name}</div>
+                  <div className="text-gray-500 text-xs">{academy.location}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Linked child */}
+            <div className="p-3 bg-black/40 rounded-xl">
+              <div className="text-gray-500 text-xs mb-1">Linked Player</div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">😀</span>
+                <div>
+                  <div className="text-white text-sm">{playerInfo.parentLinkedChild?.name || 'Emma Johnson'}</div>
+                  <div className="text-gray-500 text-xs">Code: {playerInfo.parentLinkedChild?.playerCode || 'PLAYER-DEMO1'}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Child's Quick Stats */}
+          <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+            <h3 className="text-white font-light mb-3">Child's Stats</h3>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-3 bg-black/40 rounded-xl">
+                <div className="text-2xl font-light text-cyan-400">{parseFloat(playerInfo.currentUTR) || 3.52}</div>
+                <div className="text-xs text-gray-500">UTR</div>
+              </div>
+              <div className="text-center p-3 bg-black/40 rounded-xl">
+                <div className="text-2xl font-light text-green-400">{matches.length}</div>
+                <div className="text-xs text-gray-500">Matches</div>
+              </div>
+              <div className="text-center p-3 bg-black/40 rounded-xl">
+                <div className="text-2xl font-light text-blue-400">{(practices.reduce((sum, p) => sum + (p.duration || 0), 0) / 60).toFixed(1)}h</div>
+                <div className="text-xs text-gray-500">Practice</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Academy Coaches */}
+          <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+            <h3 className="text-white font-light mb-3">Academy Coaches</h3>
+            <div className="space-y-2">
+              {academy.coaches.map(c => (
+                <div key={c.id} className="flex items-center gap-3 p-3 bg-black rounded-lg border border-gray-800">
+                  <div className="text-2xl">{c.emoji}</div>
+                  <div className="flex-1">
+                    <div className="text-white text-sm">{c.name}</div>
+                    <div className="text-gray-500 text-xs">{c.role}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Player Profile
     const totalWins = matches.filter(m => m.result === 'Win').length;
     const totalLosses = matches.filter(m => m.result === 'Loss').length;
     const totalMatches = matches.length;
@@ -4663,6 +4806,15 @@ const TennisApp = () => {
                 </div>
               </div>
             )}
+
+            {/* Player Code - for parents to link */}
+            <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-purple-400/5 rounded-lg border border-purple-400/20">
+              <div className="flex-1">
+                <div className="text-gray-500 text-xs">Your Player Code</div>
+                <div className="text-purple-400 font-mono font-bold">{playerInfo.playerCode || 'PLAYER-DEMO1'}</div>
+              </div>
+              <button onClick={() => { navigator.clipboard.writeText(playerInfo.playerCode || 'PLAYER-DEMO1'); alert('Player code copied!'); }} className="px-2 py-1 bg-purple-400/20 text-purple-400 rounded text-xs">Copy</button>
+            </div>
 
             {/* Display badges */}
             {displayBadges.length > 0 && (
@@ -5207,20 +5359,21 @@ const TennisApp = () => {
       );
     }
 
-    // Student/Parent view — see schedule & book
+    // Student/Parent view — see schedule & sign up for classes
     const myLessons = bookedLessons.filter(l => l.student === (playerInfo.name || 'Student')).sort((a,b) => new Date(a.date) - new Date(b.date));
     const upcomingMine = myLessons.filter(l => new Date(l.date) >= new Date());
-    const pastMine = myLessons.filter(l => new Date(l.date) < new Date());
+    const playerName = playerInfo.name || 'Student';
 
     return (
       <div className="space-y-4">
-        <h2 className="text-2xl font-light text-white">My Schedule</h2>
+        <h2 className="text-2xl font-light text-white">{userRole === 'parent' ? "Child's Schedule" : "My Schedule"}</h2>
 
-        {/* Upcoming sessions */}
+        {/* Upcoming private lessons (scheduled by coach) */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <h3 className="font-light text-white mb-3">Upcoming Sessions ({upcomingMine.length})</h3>
+          <h3 className="font-light text-white mb-3">Private Lessons ({upcomingMine.length})</h3>
+          <p className="text-gray-500 text-xs mb-3">Scheduled by coaches</p>
           {upcomingMine.length === 0 ? (
-            <div className="text-center py-6 text-gray-500 text-sm">No upcoming sessions</div>
+            <div className="text-center py-4 text-gray-500 text-sm">No upcoming private lessons</div>
           ) : (
             <div className="space-y-2">
               {upcomingMine.map(l => (
@@ -5230,7 +5383,6 @@ const TennisApp = () => {
                     <div>
                       <div className="text-white text-sm">{new Date(l.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</div>
                       <div className="text-gray-500 text-xs">{l.time} · {l.duration}min{l.coach ? ` · ${l.coach}` : ''}</div>
-                      {l.notes && <div className="text-cyan-400 text-xs mt-0.5">{l.notes}</div>}
                     </div>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-xs ${l.status === 'confirmed' ? 'bg-green-400/10 text-green-400' : 'bg-yellow-400/10 text-yellow-400'}`}>{l.status}</span>
@@ -5240,45 +5392,121 @@ const TennisApp = () => {
           )}
         </div>
 
-        {/* Academy availability - book a session */}
+        {/* Academy Group Classes */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-          <h3 className="font-light text-white mb-2">Academy Availability</h3>
-          <p className="text-gray-500 text-xs mb-3">Tap to request a session</p>
-          <div className="space-y-2">
-            {coachSlots.length === 0 ? (
-              <div className="text-center py-6 text-gray-500 text-sm">No availability set yet</div>
-            ) : (
-              coachSlots.map(slot => (
-                <div key={slot.id} className="flex items-center justify-between p-3 bg-black rounded-lg border border-gray-800">
-                  <div>
-                    <span className="text-cyan-400 font-medium text-sm">{slot.day}</span>
-                    <span className="text-gray-400 text-sm ml-2">{slot.from} - {slot.to}</span>
+          <h3 className="font-light text-white mb-3">Group Classes</h3>
+          <p className="text-gray-500 text-xs mb-4">Sign up for available class days</p>
+          <div className="space-y-4">
+            {academyClasses.map(cls => (
+              <div key={cls.id} className="rounded-xl border border-gray-800 overflow-hidden">
+                <div className={`bg-gradient-to-r ${cls.color} px-4 py-3 flex items-center justify-between`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{cls.icon}</span>
+                    <div>
+                      <div className="text-white font-medium text-sm">{cls.name}</div>
+                      <div className="text-white/70 text-xs">{cls.description}</div>
+                    </div>
                   </div>
-                  <button onClick={() => {
-                    const nextDate = (() => { const d = new Date(); const dayIdx = days.indexOf(slot.day); const curr = d.getDay(); const diff = (dayIdx + 1 - curr + 7) % 7 || 7; d.setDate(d.getDate() + diff); return d.toISOString().split('T')[0]; })();
-                    setBookedLessons(prev => [...prev, { id: Date.now(), student: playerInfo.name || 'Student', date: nextDate, time: slot.from, duration: 60, status: 'pending' }]);
-                    alert('Session request sent to coach!');
-                  }} className="px-3 py-1.5 bg-cyan-400 text-black rounded-lg text-sm font-medium">Request</button>
+                  {cls.minUTR > 0 && <div className="text-white/80 text-xs bg-black/20 px-2 py-0.5 rounded">{cls.minUTR}+ UTR</div>}
                 </div>
-              ))
-            )}
+                <div className="bg-black p-3 space-y-2">
+                  {cls.slots.map(slot => {
+                    const isSignedUp = slot.signedUp.includes(playerName);
+                    const spotsTaken = slot.signedUp.length;
+                    return (
+                      <div key={slot.id} className="flex items-center justify-between p-2.5 bg-gray-900 rounded-lg">
+                        <div>
+                          <div className="text-white text-sm">{slot.day}</div>
+                          <div className="text-gray-500 text-xs">{slot.time} · {slot.duration}min · {spotsTaken}/{slot.maxSpots} spots</div>
+                        </div>
+                        {isSignedUp ? (
+                          <button onClick={() => {
+                            setAcademyClasses(prev => prev.map(c => c.id === cls.id ? {...c, slots: c.slots.map(s => s.id === slot.id ? {...s, signedUp: s.signedUp.filter(n => n !== playerName)} : s)} : c));
+                          }} className="px-3 py-1.5 bg-green-400/10 text-green-400 rounded-lg text-xs border border-green-400/30">✓ Signed Up</button>
+                        ) : spotsTaken >= slot.maxSpots ? (
+                          <span className="px-3 py-1.5 text-gray-500 text-xs">Full</span>
+                        ) : (
+                          <button onClick={() => {
+                            setAcademyClasses(prev => prev.map(c => c.id === cls.id ? {...c, slots: c.slots.map(s => s.id === slot.id ? {...s, signedUp: [...s.signedUp, playerName]} : s)} : c));
+                          }} className="px-3 py-1.5 bg-cyan-400 text-black rounded-lg text-xs font-medium">Sign Up</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+      </div>
+    );
+  };
 
-        {/* Past sessions */}
-        {pastMine.length > 0 && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-            <h3 className="font-light text-gray-400 mb-3">Past Sessions</h3>
-            <div className="space-y-2">
-              {pastMine.slice(0, 5).map(l => (
-                <div key={l.id} className="flex items-center justify-between p-3 bg-black rounded-lg border border-gray-800 opacity-60">
-                  <div className="text-white text-sm">{new Date(l.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {l.time}</div>
-                  <span className="text-green-400 text-xs">Completed</span>
+  // Classes View (Coach) - manage group class rosters
+  const ClassesView = () => {
+    const [selectedClass, setSelectedClass] = useState(null);
+
+    return (
+      <div className="space-y-4">
+        <h2 className="text-2xl font-light text-white">Academy Classes</h2>
+        <p className="text-gray-500 text-sm">View rosters and manage class signups</p>
+
+        <div className="space-y-4">
+          {academyClasses.map(cls => (
+            <div key={cls.id} className="rounded-xl border border-gray-800 overflow-hidden">
+              <div className={`bg-gradient-to-r ${cls.color} px-4 py-3 flex items-center justify-between cursor-pointer`} onClick={() => setSelectedClass(selectedClass === cls.id ? null : cls.id)}>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{cls.icon}</span>
+                  <div>
+                    <div className="text-white font-medium">{cls.name}</div>
+                    <div className="text-white/70 text-xs">{cls.description}</div>
+                  </div>
                 </div>
-              ))}
+                <div className="flex items-center gap-2">
+                  {cls.minUTR > 0 && <div className="text-white/80 text-xs bg-black/20 px-2 py-0.5 rounded">{cls.minUTR}+ UTR</div>}
+                  <ChevronRight className={`w-5 h-5 text-white transition-transform ${selectedClass === cls.id ? 'rotate-90' : ''}`} />
+                </div>
+              </div>
+              
+              {selectedClass === cls.id && (
+                <div className="bg-black p-4 space-y-3">
+                  {cls.slots.map(slot => (
+                    <div key={slot.id} className="bg-gray-900 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <span className="text-cyan-400 font-medium text-sm">{slot.day}</span>
+                          <span className="text-gray-400 text-sm ml-2">{slot.time} · {slot.duration}min</span>
+                        </div>
+                        <div className="text-gray-500 text-xs">{slot.signedUp.length}/{slot.maxSpots} spots</div>
+                      </div>
+                      {slot.signedUp.length > 0 ? (
+                        <div className="space-y-1">
+                          {slot.signedUp.map((name, i) => {
+                            const student = students.find(s => s.name === name);
+                            return (
+                              <div key={i} className="flex items-center gap-2 p-2 bg-black rounded-lg border border-gray-800">
+                                <div className="text-lg">{student?.emoji || '👤'}</div>
+                                <div className="flex-1">
+                                  <div className="text-white text-sm">{name}</div>
+                                  <div className="text-gray-500 text-xs">UTR: {student?.currentUTR || '?'}</div>
+                                </div>
+                                <button onClick={() => {
+                                  setAcademyClasses(prev => prev.map(c => c.id === cls.id ? {...c, slots: c.slots.map(s => s.id === slot.id ? {...s, signedUp: s.signedUp.filter(n => n !== name)} : s)} : c));
+                                }} className="text-red-400 text-xs hover:text-red-300">Remove</button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-gray-600 text-xs py-2">No signups yet</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
     );
   };
@@ -5432,6 +5660,7 @@ const TennisApp = () => {
           {activeView === 'expenses' && <ExpenseView />}
           {activeView === 'drills' && <DrillsView />}
           {activeView === 'scheduler' && <SchedulerView />}
+          {activeView === 'classes' && <ClassesView />}
           {activeView === 'warmup' && <WarmupView />}
         </main>
       </div>
