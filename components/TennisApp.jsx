@@ -471,8 +471,11 @@ const TennisApp = () => {
   ]);
 
   const [teamChat, setTeamChat] = useState([
-    { id: 1, user: 'Emma', message: 'Good luck at your match today! 🎾', time: '10:30 AM' },
-    { id: 2, user: 'Coach Mike', message: 'Team practice moved to 4pm tomorrow', time: '11:15 AM' }
+    { id: 1, user: 'Emma', role: 'player', message: 'Good luck at your match today! 🎾', time: '10:30 AM', reactions: ['🎾', '💪'] },
+    { id: 2, user: 'Coach Mike', role: 'coach', message: 'Team practice moved to 4pm tomorrow', time: '11:15 AM', reactions: ['👍'] },
+    { id: 3, user: 'Alex', role: 'player', message: 'Just hit my best serve speed ever!! 💪', time: '11:45 AM', reactions: ['🔥', '🔥', '⭐'] },
+    { id: 4, user: 'Coach Sarah', role: 'coach', message: 'Great job Alex! Keep that toss consistent', time: '12:00 PM', reactions: [] },
+    { id: 5, user: 'Emma', role: 'player', message: 'Who wants to rally after class today?', time: '1:30 PM', reactions: ['🎾'] },
   ]);
 
   const [chatMessage, setChatMessage] = useState('');
@@ -1050,49 +1053,56 @@ const TennisApp = () => {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
+          {/* Dashboard + Profile always first */}
           <SidebarItem icon={<Target />} label="Dashboard" view="dashboard" />
-          <SidebarItem icon={<Calendar />} label="Calendar" view="calendar" />
+          <SidebarItem icon={<User />} label="Profile" view="profile" />
           
-          {/* Player-only items */}
+          {/* Section: Updates */}
+          <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Updates</span></div>
+          <SidebarItem icon={<MessageSquare />} label="Coach Notes" view="notes" />
+          <SidebarItem icon={<Users />} label="Team Chat" view="chat" />
+          {userRole === 'coach' && <SidebarItem icon={<Bell />} label="Notifications" view="notifications" />}
+          
+          {/* Section: My Tennis (Player) */}
           {userRole === 'player' && (
             <>
+              <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">My Tennis</span></div>
               <SidebarItem icon={<Trophy />} label="Match Records" view="matches" />
-              <SidebarItem icon={<Star />} label="Achievements" view="achievements" />
-              <SidebarItem icon={<Crosshair />} label="Goals" view="goals" />
+              <SidebarItem icon={<Dumbbell />} label="Practice Log" view="calendar" />
+              <SidebarItem icon={<BookOpen />} label="Journal & Goals" view="journal" />
               <SidebarItem icon={<Search />} label="Scouting" view="scouting" />
-              <SidebarItem icon={<BookOpen />} label="Journal" view="journal" />
-              <SidebarItem icon={<Clock />} label="My Schedule" view="scheduler" />
               <SidebarItem icon={<Dumbbell />} label="Warmup" view="warmup" />
             </>
           )}
           
-          {/* Parent items - view-only versions */}
+          {/* Section: Child's Tennis (Parent) */}
           {userRole === 'parent' && (
             <>
+              <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Child's Tennis</span></div>
               <SidebarItem icon={<Trophy />} label="Match Records" view="matches" />
-              <SidebarItem icon={<Crosshair />} label="Goals" view="goals" />
-              <SidebarItem icon={<BookOpen />} label="Journal" view="journal" />
-              <SidebarItem icon={<Clock />} label="Schedule" view="scheduler" />
-              <SidebarItem icon={<DollarSign />} label="Expenses" view="expenses" />
+              <SidebarItem icon={<BookOpen />} label="Journal & Goals" view="journal" />
             </>
           )}
           
-          <SidebarItem icon={<MessageSquare />} label="Coach Notes" view="notes" />
-          {userRole !== 'coach' && <SidebarItem icon={<Users />} label="Team Chat" view="chat" />}
-          
-          {/* Coach items */}
+          {/* Section: Academy (Coach) */}
           {userRole === 'coach' && (
             <>
+              <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Academy</span></div>
               <SidebarItem icon={<Users />} label="My Students" view="students" />
               <SidebarItem icon={<ClipboardList />} label="Drills" view="drills" />
-              <SidebarItem icon={<Clock />} label="Scheduler" view="scheduler" />
               <SidebarItem icon={<BookOpen />} label="Classes" view="classes" />
-              <SidebarItem icon={<Users />} label="Team Chat" view="chat" />
-              <SidebarItem icon={<Bell />} label="Notifications" view="notifications" />
             </>
           )}
           
-          <SidebarItem icon={<User />} label="Profile" view="profile" />
+          {/* Section: Schedule */}
+          <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Schedule</span></div>
+          <SidebarItem icon={<Calendar />} label="Calendar" view="calendar" />
+          <SidebarItem icon={<Clock />} label={userRole === 'coach' ? 'Scheduler' : userRole === 'parent' ? "Child's Schedule" : 'My Schedule'} view="scheduler" />
+          
+          {/* Section: More */}
+          <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">More</span></div>
+          {userRole === 'player' && <SidebarItem icon={<Star />} label="Achievements" view="achievements" />}
+          {userRole === 'parent' && <SidebarItem icon={<DollarSign />} label="Expenses" view="expenses" />}
           <SidebarItem icon={<Image />} label="Media" view="media" />
         </div>
         
@@ -1606,6 +1616,29 @@ const TennisApp = () => {
           </div>
         </div>
       )}
+
+      {/* USTA Points by Age Group */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+        <h3 className="text-lg font-light text-white mb-3 flex items-center gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="#22D3EE" strokeWidth="2"/><text x="12" y="16" textAnchor="middle" fill="#22D3EE" fontSize="10" fontWeight="bold" fontFamily="Arial">U</text></svg>
+          USTA Points
+        </h3>
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { age: '12s', points: 42, rank: 'T-150', color: '22C55E' },
+            { age: '14s', points: 78, rank: 'T-85', color: '06B6D4' },
+            { age: '16s', points: 15, rank: 'T-320', color: '8B5CF6' },
+            { age: '18s', points: 0, rank: '—', color: '64748B' },
+          ].map(g => (
+            <div key={g.age} className="text-center p-3 bg-black rounded-xl border border-gray-800">
+              <div className="text-xs text-gray-500 mb-1">{g.age}</div>
+              <div className="text-xl font-light" style={{color: `#${g.color}`}}>{g.points}</div>
+              <div className="text-xs text-gray-600">Rank {g.rank}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-gray-600 text-xs mt-2 text-center">Points from USTA sanctioned tournaments</p>
+      </div>
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
@@ -2240,7 +2273,7 @@ const TennisApp = () => {
   };
 
   const CalendarView = () => {
-    const [currentDate, setCurrentDate] = React.useState(new Date(2026, 0, 1)); // January 2026
+    const [currentDate, setCurrentDate] = React.useState(new Date()); // Current month
     const [selectedDate, setSelectedDate] = React.useState(null);
     const [showAddEvent, setShowAddEvent] = React.useState(false);
     const [showDayEvents, setShowDayEvents] = React.useState(false);
@@ -2792,7 +2825,7 @@ const TennisApp = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <div className="text-white text-xl font-light">vs {m.opponent}</div>
-                <div className="text-gray-400 text-sm mt-1">{m.date}</div>
+                <div className="text-gray-400 text-sm mt-1">{new Date(m.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
               </div>
               <div className={`px-4 py-1 rounded-full ${m.result === 'Win' ? 'bg-green-400/20 text-green-400 border border-green-400/30' : 'bg-red-400/20 text-red-400 border border-red-400/30'}`}>
                 {m.result}
@@ -3102,44 +3135,96 @@ const TennisApp = () => {
 
     return (
     <div className="space-y-4">
-      <h2 className="text-2xl font-light text-white">Team Chat</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-light text-white">Team Chat</h2>
+        <div className="flex items-center gap-1.5">
+          <div className="flex -space-x-2">
+            {[{c:'22C55E'},{c:'06B6D4'},{c:'8B5CF6'},{c:'F97316'}].map((a,i) => (
+              <div key={i} className="w-6 h-6 rounded-full border-2 border-gray-900" style={{backgroundColor: `#${a.c}`}}>
+                <svg viewBox="0 0 24 24" className="w-full h-full"><circle cx="12" cy="9" r="3.5" fill="rgba(0,0,0,0.3)"/><path d="M12 14c-4 0-7 2-7 4v1h14v-1c0-2-3-4-7-4z" fill="rgba(0,0,0,0.3)"/></svg>
+              </div>
+            ))}
+          </div>
+          <span className="text-xs text-green-400 ml-1">4 online</span>
+        </div>
+      </div>
+
       <div className="bg-gray-900 rounded-xl border border-gray-800 h-[600px] flex flex-col">
-        <div className="flex-1 p-6 overflow-y-auto space-y-4">
-          {teamChat.map(msg => (
-            <div key={msg.id} className={`flex gap-3 ${msg.user === 'You' ? 'flex-row-reverse' : ''}`}>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                {msg.user[0]}
-              </div>
-              <div className={`flex-1 max-w-md ${msg.user === 'You' ? 'text-right' : ''}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-white font-light text-sm ${msg.user === 'You' ? 'order-2' : ''}`}>
-                    {msg.user}
-                  </span>
-                  <span className={`text-gray-500 text-xs ${msg.user === 'You' ? 'order-1' : ''}`}>
-                    {msg.time}
-                  </span>
+        <div className="flex-1 p-4 overflow-y-auto space-y-3">
+          {teamChat.map(msg => {
+            const isYou = msg.user === 'You';
+            const isCoach = msg.role === 'coach';
+            // Custom SVG avatar colors per user
+            const avatarColors = { 'Emma': '22C55E', 'Alex': '06B6D4', 'Coach Mike': 'F97316', 'Coach Sarah': '8B5CF6', 'You': '00BCD4' };
+            const avatarColor = avatarColors[msg.user] || '64748B';
+            
+            return (
+              <div key={msg.id} className={`flex gap-2.5 ${isYou ? 'flex-row-reverse' : ''}`}>
+                {/* Custom SVG Avatar */}
+                <div className="flex-shrink-0">
+                  <svg width="36" height="36" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="17" fill={`#${avatarColor}`} opacity="0.15" stroke={`#${avatarColor}`} strokeWidth="1.5"/>
+                    <circle cx="18" cy="14" r="5" fill={`#${avatarColor}`} opacity="0.6"/>
+                    <path d="M18 21c-5.5 0-10 2.5-10 5.5V29h20v-2.5c0-3-4.5-5.5-10-5.5z" fill={`#${avatarColor}`} opacity="0.4"/>
+                    <text x="18" y="19" textAnchor="middle" fill={`#${avatarColor}`} fontSize="14" fontWeight="bold" fontFamily="Arial">{msg.user[0]}</text>
+                  </svg>
                 </div>
-                <div className={`inline-block px-4 py-2 rounded-2xl ${
-                  msg.user === 'You' 
-                    ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black' 
-                    : 'bg-gray-800 text-gray-300'
-                }`}>
-                  {msg.message}
-                </div>
-                {msg.user === 'You' && (
-                  <div className="flex items-center justify-end gap-1 mt-0.5">
-                    <CheckCheck className="w-3.5 h-3.5 text-cyan-400" />
-                    <span className="text-xs text-gray-500">Read</span>
+                
+                <div className={`flex-1 max-w-[75%] ${isYou ? 'text-right' : ''}`}>
+                  <div className={`flex items-center gap-2 mb-0.5 ${isYou ? 'justify-end' : ''}`}>
+                    <span className="text-white text-sm font-medium">{msg.user}</span>
+                    {isCoach && (
+                      <span className="px-1.5 py-0.5 bg-orange-400/15 text-orange-400 text-xs rounded border border-orange-400/30">Coach</span>
+                    )}
+                    <span className="text-gray-600 text-xs">{msg.time}</span>
                   </div>
-                )}
+                  
+                  <div className={`inline-block px-4 py-2.5 rounded-2xl text-sm ${
+                    isYou 
+                      ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-black rounded-br-sm' 
+                      : isCoach
+                        ? 'bg-gradient-to-r from-orange-400/10 to-amber-400/10 text-gray-200 border border-orange-400/20 rounded-bl-sm'
+                        : 'bg-gray-800 text-gray-300 rounded-bl-sm'
+                  }`}>
+                    {msg.message}
+                  </div>
+                  
+                  {/* Reactions */}
+                  {msg.reactions && msg.reactions.length > 0 && (
+                    <div className={`flex gap-1 mt-1 ${isYou ? 'justify-end' : ''}`}>
+                      {[...new Set(msg.reactions)].map((r, i) => {
+                        const count = msg.reactions.filter(x => x === r).length;
+                        return (
+                          <button key={i} className="flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-800 rounded-full border border-gray-700 hover:border-cyan-400/30 transition-all">
+                            <span className="text-xs">{r}</span>
+                            {count > 1 && <span className="text-xs text-gray-400">{count}</span>}
+                          </button>
+                        );
+                      })}
+                      <button onClick={() => {
+                        setTeamChat(prev => prev.map(m => m.id === msg.id ? {...m, reactions: [...(m.reactions || []), '👍']} : m));
+                      }} className="w-5 h-5 flex items-center justify-center text-gray-600 hover:text-gray-400 rounded-full hover:bg-gray-800 text-xs">+</button>
+                    </div>
+                  )}
+                  
+                  {isYou && (
+                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                      <CheckCheck className="w-3.5 h-3.5 text-cyan-400" />
+                      <span className="text-xs text-gray-600">Read</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {/* Typing indicator */}
           {teamChat.length > 0 && teamChat[teamChat.length - 1]?.user === 'You' && (
-            <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white text-xs font-medium flex-shrink-0">C</div>
-              <div className="px-4 py-2 bg-gray-800 rounded-2xl">
+            <div className="flex gap-2.5">
+              <svg width="36" height="36" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="17" fill="#22C55E" opacity="0.15" stroke="#22C55E" strokeWidth="1.5"/>
+                <text x="18" y="22" textAnchor="middle" fill="#22C55E" fontSize="14" fontWeight="bold" fontFamily="Arial">E</text>
+              </svg>
+              <div className="px-4 py-3 bg-gray-800 rounded-2xl rounded-bl-sm">
                 <div className="flex gap-1">
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}} />
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}} />
@@ -3149,71 +3234,46 @@ const TennisApp = () => {
             </div>
           )}
         </div>
-        <div className="border-t border-gray-800 p-4">
-          <div className="flex gap-2 mb-3">
-            <button 
-              onClick={() => addSticker('🎾')}
-              className="px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-xl"
-            >
-              🎾
-            </button>
-            <button 
-              onClick={() => addSticker('💪')}
-              className="px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-xl"
-            >
-              💪
-            </button>
-            <button 
-              onClick={() => addSticker('🔥')}
-              className="px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-xl"
-            >
-              🔥
-            </button>
-            <button 
-              onClick={() => addSticker('⭐')}
-              className="px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-xl"
-            >
-              ⭐
-            </button>
-            <button 
-              onClick={() => addSticker('🏆')}
-              className="px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-xl"
-            >
-              🏆
-            </button>
-            <button 
-              onClick={() => addSticker('👏')}
-              className="px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-xl"
-            >
-              👏
-            </button>
-            <button 
-              onClick={() => addSticker('🎉')}
-              className="px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-xl"
-            >
-              🎉
-            </button>
-            <button 
-              onClick={() => addSticker('👍')}
-              className="px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors text-xl"
-            >
-              👍
-            </button>
+        
+        {/* Quick reactions bar */}
+        <div className="border-t border-gray-800 px-4 pt-3 pb-1">
+          <div className="flex gap-1.5 overflow-x-auto pb-2">
+            {[
+              { emoji: '🎾' },
+              { emoji: '💪' },
+              { emoji: '🔥' },
+              { emoji: '⭐' },
+              { emoji: '🏆' },
+              { emoji: '👏' },
+              { emoji: '🎉' },
+              { emoji: '👍' },
+            ].map(s => (
+              <button key={s.emoji} onClick={() => addSticker(s.emoji)} className="px-3 py-2 bg-gray-800 rounded-xl hover:bg-gray-700 transition-colors flex-shrink-0">
+                <span className="text-lg">{s.emoji}</span>
+              </button>
+            ))}
           </div>
+        </div>
+        
+        {/* Message input */}
+        <div className="px-4 pb-4">
           <div className="flex gap-2">
+            <button className="px-3 py-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors">
+              <Image className="w-4 h-4 text-gray-400" />
+            </button>
             <input
               id="chat-input"
               type="text"
               value={chatMessage}
               onChange={(e) => setChatMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Send encouragement to teammates..."
+              placeholder="Send a message..."
               className="flex-1 px-4 py-3 bg-black border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-400"
               autoFocus
             />
             <button 
               onClick={handleSendMessage}
-              className="px-6 py-3 bg-gradient-to-r from-cyan-400 to-blue-500 text-black rounded-lg hover:from-cyan-300 hover:to-blue-400 transition-all font-medium"
+              className="px-4 py-3 bg-gradient-to-r from-cyan-400 to-blue-500 text-black rounded-lg hover:from-cyan-300 hover:to-blue-400 transition-all"
             >
               <Send className="w-4 h-4" />
             </button>
@@ -3256,7 +3316,6 @@ const TennisApp = () => {
       : achievements.filter(a => a.category === selectedCategory);
 
     const unlockedCount = achievements.filter(a => a.unlocked).length;
-    const totalPoints = unlockedCount * 100;
 
     return (
     <div className="space-y-6">
@@ -3266,17 +3325,11 @@ const TennisApp = () => {
           <h2 className="text-3xl font-light text-white mb-2 flex items-center gap-3">
             🏆 Achievement Wall
           </h2>
-          <p className="text-gray-400">Unlock achievements and earn rewards!</p>
+          <p className="text-gray-400">Unlock achievements by playing tennis!</p>
         </div>
-        <div className="flex gap-4">
-          <div className="text-center p-4 bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-xl border border-cyan-400/30">
-            <div className="text-3xl font-light text-cyan-400">{unlockedCount}/{achievements.length}</div>
-            <div className="text-xs text-gray-400 mt-1">Unlocked</div>
-          </div>
-          <div className="text-center p-4 bg-gradient-to-br from-yellow-400/10 to-orange-500/10 rounded-xl border border-yellow-400/30">
-            <div className="text-3xl font-light text-yellow-400">{totalPoints}</div>
-            <div className="text-xs text-gray-400 mt-1">Points</div>
-          </div>
+        <div className="text-center p-4 bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-xl border border-cyan-400/30">
+          <div className="text-3xl font-light text-cyan-400">{unlockedCount}/{achievements.length}</div>
+          <div className="text-xs text-gray-400 mt-1">Unlocked</div>
         </div>
       </div>
 
@@ -3461,7 +3514,7 @@ const TennisApp = () => {
                         {m.result}
                       </div>
                     </div>
-                    <div className="text-gray-400 text-xs">{m.date}</div>
+                    <div className="text-gray-400 text-xs">{new Date(m.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
                     <div className="text-cyan-400 text-sm mt-1">{m.score}</div>
                   </div>
                 ))}
@@ -3968,13 +4021,33 @@ const TennisApp = () => {
 
   const JournalView = () => {
     const [entries, setEntries] = useState([
-      { id: 1, date: '2026-01-15', mood: '😊', title: 'Great practice today', content: 'Worked on my serve toss and it felt much more consistent. Coach said my forehand is improving too.', tags: ['Serve', 'Forehand'] },
-      { id: 2, date: '2026-01-12', mood: '😤', title: 'Tough loss but learned a lot', content: 'Lost to Sarah in 3 sets. Need to stay focused during tiebreaks. My backhand broke down under pressure.', tags: ['Match', 'Mental Game'] },
+      { id: 1, date: '2026-01-15', mood: 'fired-up', type: 'practice', title: 'Great practice today', content: 'Worked on my serve toss and it felt much more consistent. Coach said my forehand is improving too.', tags: ['Serve', 'Forehand'], image: null },
+      { id: 2, date: '2026-01-12', mood: 'frustrated', type: 'match', title: 'Tough loss but learned a lot', content: 'Lost to Sarah in 3 sets. Need to stay focused during tiebreaks. My backhand broke down under pressure.', tags: ['Match', 'Mental Game'], image: null },
+      { id: 3, date: '2026-01-10', mood: 'confident', type: 'general', title: 'Feeling ready for the tournament', content: 'Did some visualization and light hitting. Mentally I feel strong going into this weekend.', tags: ['Mental Game', 'Tournament'], image: null },
     ]);
     const [showNewEntry, setShowNewEntry] = useState(false);
-    const [newEntry, setNewEntry] = useState({ mood: '😊', title: '', content: '', tags: [] });
+    const [newEntry, setNewEntry] = useState({ mood: 'happy', type: 'general', title: '', content: '', tags: [], image: null });
+    const [journalTab, setJournalTab] = useState('journal');
 
-    const moodOptions = ['😊', '😤', '😎', '🤔', '💪', '😴', '🔥', '😰'];
+    // Custom SVG mood icons
+    const moodIcons = {
+      'happy': { label: 'Happy', color: '22C55E', svg: (s=28) => <svg width={s} height={s} viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#22C55E" opacity="0.15" stroke="#22C55E" strokeWidth="1.5"/><circle cx="11" cy="13" r="2" fill="#22C55E"/><circle cx="21" cy="13" r="2" fill="#22C55E"/><path d="M10 20 Q16 26 22 20" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round"/></svg> },
+      'fired-up': { label: 'Fired Up', color: 'F97316', svg: (s=28) => <svg width={s} height={s} viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#F97316" opacity="0.15" stroke="#F97316" strokeWidth="1.5"/><path d="M9 11 L13 13 L9 15" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M23 11 L19 13 L23 15" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M10 20 Q16 27 22 20" fill="none" stroke="#F97316" strokeWidth="2" strokeLinecap="round"/></svg> },
+      'confident': { label: 'Confident', color: '8B5CF6', svg: (s=28) => <svg width={s} height={s} viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#8B5CF6" opacity="0.15" stroke="#8B5CF6" strokeWidth="1.5"/><path d="M9 11 L14 9" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round"/><circle cx="11" cy="14" r="2" fill="#8B5CF6"/><circle cx="21" cy="13" r="2" fill="#8B5CF6"/><path d="M12 21 Q16 25 22 20" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round"/></svg> },
+      'frustrated': { label: 'Frustrated', color: 'EF4444', svg: (s=28) => <svg width={s} height={s} viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#EF4444" opacity="0.15" stroke="#EF4444" strokeWidth="1.5"/><path d="M9 10 L14 14" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"/><path d="M14 10 L9 14" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"/><path d="M18 10 L23 14" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"/><path d="M23 10 L18 14" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"/><path d="M10 23 Q16 18 22 23" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"/></svg> },
+      'focused': { label: 'Focused', color: '06B6D4', svg: (s=28) => <svg width={s} height={s} viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#06B6D4" opacity="0.15" stroke="#06B6D4" strokeWidth="1.5"/><circle cx="11" cy="14" r="2.5" fill="none" stroke="#06B6D4" strokeWidth="1.5"/><circle cx="11" cy="14" r="1" fill="#06B6D4"/><circle cx="21" cy="14" r="2.5" fill="none" stroke="#06B6D4" strokeWidth="1.5"/><circle cx="21" cy="14" r="1" fill="#06B6D4"/><path d="M13 21 L19 21" stroke="#06B6D4" strokeWidth="2" strokeLinecap="round"/></svg> },
+      'tired': { label: 'Tired', color: '64748B', svg: (s=28) => <svg width={s} height={s} viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#64748B" opacity="0.15" stroke="#64748B" strokeWidth="1.5"/><path d="M8 14 L14 14" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/><path d="M18 14 L24 14" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/><path d="M12 22 Q16 19 20 22" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round"/></svg> },
+      'pumped': { label: 'Pumped', color: 'FACC15', svg: (s=28) => <svg width={s} height={s} viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#FACC15" opacity="0.15" stroke="#FACC15" strokeWidth="1.5"/><path d="M8 10 L14 14" stroke="#FACC15" strokeWidth="2" strokeLinecap="round"/><path d="M14 10 L8 14" stroke="#FACC15" strokeWidth="2" strokeLinecap="round"/><circle cx="22" cy="13" r="2" fill="#FACC15"/><path d="M9 19 Q16 27 23 19" fill="#FACC15" opacity="0.3" stroke="#FACC15" strokeWidth="1.5"/></svg> },
+      'nervous': { label: 'Nervous', color: 'EC4899', svg: (s=28) => <svg width={s} height={s} viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#EC4899" opacity="0.15" stroke="#EC4899" strokeWidth="1.5"/><circle cx="11" cy="13" r="2.5" fill="none" stroke="#EC4899" strokeWidth="1.5"/><circle cx="11" cy="13" r="1" fill="#EC4899"/><circle cx="21" cy="13" r="2.5" fill="none" stroke="#EC4899" strokeWidth="1.5"/><circle cx="21" cy="13" r="1" fill="#EC4899"/><path d="M11 21 L14 19 L17 22 L20 20" fill="none" stroke="#EC4899" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg> },
+    };
+
+    const entryTypes = {
+      'match': { label: 'Match', icon: '🏆', color: 'from-green-500/10 to-emerald-500/10', border: 'border-green-400/20', accent: 'text-green-400' },
+      'practice': { label: 'Practice', icon: '🎾', color: 'from-cyan-500/10 to-blue-500/10', border: 'border-cyan-400/20', accent: 'text-cyan-400' },
+      'tournament': { label: 'Tournament', icon: '🏅', color: 'from-yellow-500/10 to-amber-500/10', border: 'border-yellow-400/20', accent: 'text-yellow-400' },
+      'general': { label: 'General', icon: '📓', color: 'from-purple-500/10 to-pink-500/10', border: 'border-purple-400/20', accent: 'text-purple-400' },
+    };
+
     const tagOptions = ['Serve', 'Forehand', 'Backhand', 'Volley', 'Mental Game', 'Fitness', 'Match', 'Tournament'];
 
     const handleAddEntry = () => {
@@ -3985,144 +4058,251 @@ const TennisApp = () => {
         ...newEntry
       };
       setEntries([entry, ...entries]);
-      setNewEntry({ mood: '😊', title: '', content: '', tags: [] });
+      setNewEntry({ mood: 'happy', type: 'general', title: '', content: '', tags: [], image: null });
       setShowNewEntry(false);
     };
 
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-light text-white">{userRole === 'parent' ? "Child's Journal" : "Tennis Journal"}</h2>
-            <p className="text-gray-400 mt-1">{userRole === 'parent' ? 'View your child\'s reflections' : 'Reflect on your journey'}</p>
+            <h2 className="text-2xl font-light text-white">{userRole === 'parent' ? "Child's Journal & Goals" : "Journal & Goals"}</h2>
           </div>
           {userRole !== 'parent' && (
-            <button
-              onClick={() => setShowNewEntry(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              New Entry
+            <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 px-4 py-2 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors">
+              <Plus className="w-4 h-4" /> New Entry
             </button>
           )}
         </div>
 
+        {/* Tabs: Journal / Goals */}
+        <div className="flex gap-2 p-1 bg-gray-900 rounded-lg border border-gray-800">
+          <button onClick={() => setJournalTab('journal')} className={`flex-1 py-2 rounded-lg text-sm transition-all ${journalTab === 'journal' ? 'bg-cyan-400 text-black font-medium' : 'text-gray-400'}`}>Journal</button>
+          <button onClick={() => setJournalTab('weekly')} className={`flex-1 py-2 rounded-lg text-sm transition-all ${journalTab === 'weekly' ? 'bg-cyan-400 text-black font-medium' : 'text-gray-400'}`}>Weekly Goals</button>
+          <button onClick={() => setJournalTab('season')} className={`flex-1 py-2 rounded-lg text-sm transition-all ${journalTab === 'season' ? 'bg-cyan-400 text-black font-medium' : 'text-gray-400'}`}>Season Goals</button>
+        </div>
+
+        {/* JOURNAL TAB */}
+        {journalTab === 'journal' && (
+          <div className="space-y-3">
+            {/* Filter by type */}
+            <div className="flex gap-2 flex-wrap">
+              {Object.entries(entryTypes).map(([key, t]) => (
+                <span key={key} className={`px-2 py-1 rounded-full text-xs ${t.border} border bg-gradient-to-r ${t.color} ${t.accent}`}>{t.icon} {t.label}</span>
+              ))}
+            </div>
+
+            {entries.map(entry => {
+              const type = entryTypes[entry.type] || entryTypes.general;
+              const mood = moodIcons[entry.mood] || moodIcons.happy;
+              return (
+                <div key={entry.id} className={`rounded-xl border ${type.border} overflow-hidden hover:shadow-lg transition-all`}>
+                  {/* Type banner */}
+                  <div className={`bg-gradient-to-r ${type.color} px-4 py-2 flex items-center justify-between`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{type.icon}</span>
+                      <span className={`text-xs font-medium ${type.accent}`}>{type.label}</span>
+                    </div>
+                    <span className="text-gray-500 text-xs">{new Date(entry.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+                  </div>
+                  <div className="bg-gray-900 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-0.5">{mood.svg(36)}</div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium mb-1">{entry.title}</h3>
+                        <p className="text-gray-400 text-sm mb-3">{entry.content}</p>
+                        {entry.image && (
+                          <div className="mb-3 rounded-lg overflow-hidden bg-gray-800 h-32 flex items-center justify-center">
+                            <Image className="w-8 h-8 text-gray-600" />
+                            <span className="text-gray-500 text-xs ml-2">Photo attached</span>
+                          </div>
+                        )}
+                        <div className="flex gap-1.5 flex-wrap">
+                          {entry.tags.map(tag => (
+                            <span key={tag} className={`px-2 py-0.5 text-xs rounded-full border ${type.border} ${type.accent} bg-black/30`}>{tag}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* WEEKLY GOALS TAB */}
+        {journalTab === 'weekly' && (
+          <div className="space-y-4">
+            {userRole !== 'parent' && (
+              <div className="flex gap-2">
+                <input
+                  value={newEntry.title || ''}
+                  onChange={e => setNewEntry({...newEntry, title: e.target.value})}
+                  placeholder="Add a goal for this week..."
+                  className="flex-1 px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-400"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newEntry.title?.trim()) {
+                      setWeeklyGoals(prev => [...prev, { id: Date.now(), text: newEntry.title.trim(), completed: false, focusArea: 'General' }]);
+                      setNewEntry({...newEntry, title: ''});
+                    }
+                  }}
+                />
+                <button onClick={() => {
+                  if (newEntry.title?.trim()) {
+                    setWeeklyGoals(prev => [...prev, { id: Date.now(), text: newEntry.title.trim(), completed: false, focusArea: 'General' }]);
+                    setNewEntry({...newEntry, title: ''});
+                  }
+                }} className="px-4 py-3 bg-cyan-400 text-black rounded-lg"><Plus className="w-5 h-5" /></button>
+              </div>
+            )}
+            <div className="p-4 bg-gradient-to-r from-cyan-400/10 to-blue-500/10 border border-cyan-400/30 rounded-xl">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Weekly Progress</span>
+                <span className="text-cyan-400 font-light text-lg">{weeklyGoals.filter(g => g.completed).length}/{weeklyGoals.length}</span>
+              </div>
+              <div className="mt-2 h-2 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all" style={{ width: `${weeklyGoals.length > 0 ? (weeklyGoals.filter(g => g.completed).length / weeklyGoals.length * 100) : 0}%` }} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              {weeklyGoals.map(goal => (
+                <div key={goal.id} className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${goal.completed ? 'bg-green-400/5 border-green-400/20' : 'bg-gray-900 border-gray-800'}`}>
+                  <button onClick={() => setWeeklyGoals(prev => prev.map(g => g.id === goal.id ? {...g, completed: !g.completed} : g))} className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${goal.completed ? 'border-green-400 bg-green-400 text-black' : 'border-gray-600'}`}>
+                    {goal.completed && '✓'}
+                  </button>
+                  <div className="flex-1">
+                    <div className={`text-sm ${goal.completed ? 'text-gray-500 line-through' : 'text-white'}`}>{goal.text}</div>
+                  </div>
+                  <span className="px-2 py-0.5 bg-cyan-400/10 text-cyan-400 text-xs rounded">{goal.focusArea}</span>
+                  {userRole !== 'parent' && <button onClick={() => setWeeklyGoals(prev => prev.filter(g => g.id !== goal.id))} className="text-gray-600 hover:text-red-400 text-sm">✕</button>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SEASON GOALS TAB */}
+        {journalTab === 'season' && (
+          <div className="space-y-4">
+            {seasonGoals.map(goal => {
+              const pct = goal.target > 0 ? Math.min((goal.current / goal.target) * 100, 100) : 0;
+              const daysLeft = Math.ceil((new Date(goal.deadline) - new Date()) / (1000 * 60 * 60 * 24));
+              return (
+                <div key={goal.id} className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{goal.icon}</span>
+                      <div>
+                        <div className="text-white font-light">{goal.title}</div>
+                        <div className="text-xs text-gray-500">{daysLeft > 0 ? `${daysLeft} days left` : 'Past deadline'}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-cyan-400 font-light">{typeof goal.current === 'number' && goal.current % 1 !== 0 ? goal.current.toFixed(2) : goal.current}</div>
+                      <div className="text-xs text-gray-500">of {typeof goal.target === 'number' && goal.target % 1 !== 0 ? goal.target.toFixed(1) : goal.target}</div>
+                    </div>
+                  </div>
+                  <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-green-400' : pct >= 50 ? 'bg-cyan-400' : 'bg-blue-500'}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="text-right mt-1 text-xs text-gray-500">{pct.toFixed(0)}%</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* New Entry Modal */}
         {showNewEntry && (
           <div className="fixed inset-0 bg-black bg-opacity-75 z-50 overflow-y-auto">
             <div className="min-h-full flex items-start justify-center p-4 py-8">
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 max-w-2xl w-full">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-light text-white">New Journal Entry</h3>
-                <button onClick={() => setShowNewEntry(false)} className="text-gray-400 hover:text-white">
-                  <X className="w-6 h-6" />
-                </button>
+                <button onClick={() => setShowNewEntry(false)} className="text-gray-400 hover:text-white"><X className="w-6 h-6" /></button>
               </div>
 
               <div className="space-y-4">
+                {/* Entry Type */}
                 <div>
-                  <label className="block text-gray-400 text-sm mb-2">How are you feeling?</label>
-                  <div className="flex gap-2">
-                    {moodOptions.map(m => (
-                      <button
-                        key={m}
-                        onClick={() => setNewEntry({...newEntry, mood: m})}
-                        className={`text-3xl p-2 rounded-lg transition-all ${newEntry.mood === m ? 'bg-cyan-400/20 ring-2 ring-cyan-400 scale-110' : 'hover:bg-gray-800'}`}
-                      >
-                        {m}
+                  <label className="block text-gray-400 text-sm mb-2">What is this about?</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {Object.entries(entryTypes).map(([key, t]) => (
+                      <button key={key} onClick={() => setNewEntry({...newEntry, type: key})} className={`p-3 rounded-xl border text-center transition-all ${newEntry.type === key ? `${t.border} bg-gradient-to-r ${t.color} ring-1 ring-cyan-400` : 'border-gray-700 hover:border-gray-600'}`}>
+                        <div className="text-xl mb-1">{t.icon}</div>
+                        <div className={`text-xs ${newEntry.type === key ? t.accent : 'text-gray-500'}`}>{t.label}</div>
                       </button>
                     ))}
                   </div>
                 </div>
 
+                {/* Mood */}
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">How are you feeling?</label>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {Object.entries(moodIcons).map(([key, m]) => (
+                      <button key={key} onClick={() => setNewEntry({...newEntry, mood: key})} className={`flex flex-col items-center p-2 rounded-xl transition-all ${newEntry.mood === key ? 'bg-gray-800 ring-2 ring-cyan-400 scale-105' : 'hover:bg-gray-800/50'}`}>
+                        {m.svg(32)}
+                        <span className="text-xs text-gray-500 mt-1">{m.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Title */}
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">Title</label>
-                  <input
-                    type="text"
-                    value={newEntry.title}
-                    onChange={(e) => setNewEntry({...newEntry, title: e.target.value})}
-                    placeholder="What happened today?"
-                    className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400"
-                  />
+                  <input type="text" value={newEntry.title} onChange={(e) => setNewEntry({...newEntry, title: e.target.value})} placeholder="What happened today?" className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400" />
                 </div>
 
+                {/* Content */}
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">Your thoughts</label>
-                  <textarea
-                    value={newEntry.content}
-                    onChange={(e) => setNewEntry({...newEntry, content: e.target.value})}
-                    placeholder="Write about your practice, match, or anything tennis-related..."
-                    className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400"
-                    rows="5"
-                  />
+                  <textarea value={newEntry.content} onChange={(e) => setNewEntry({...newEntry, content: e.target.value})} placeholder="Write about your practice, match, or anything tennis-related..." className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400" rows="4" />
                 </div>
 
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Add a photo</label>
+                  <div className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${newEntry.image ? 'border-cyan-400/50 bg-cyan-400/5' : 'border-gray-700 hover:border-gray-500'}`}
+                    onClick={() => setNewEntry({...newEntry, image: newEntry.image ? null : 'photo.jpg'})}>
+                    {newEntry.image ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Image className="w-5 h-5 text-cyan-400" />
+                        <span className="text-cyan-400 text-sm">Photo added! Tap to remove</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <Image className="w-8 h-8 text-gray-600 mx-auto mb-1" />
+                        <span className="text-gray-500 text-sm">Tap to add a photo</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tags */}
                 <div>
                   <label className="block text-gray-400 text-sm mb-2">Tags</label>
                   <div className="flex flex-wrap gap-2">
                     {tagOptions.map(tag => (
-                      <button
-                        key={tag}
-                        onClick={() => {
-                          const tags = newEntry.tags.includes(tag)
-                            ? newEntry.tags.filter(t => t !== tag)
-                            : [...newEntry.tags, tag];
-                          setNewEntry({...newEntry, tags});
-                        }}
-                        className={`px-3 py-1 rounded-full text-sm transition-all ${
-                          newEntry.tags.includes(tag)
-                            ? 'bg-cyan-400 text-black'
-                            : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                        }`}
-                      >
-                        {tag}
-                      </button>
+                      <button key={tag} onClick={() => {
+                        const tags = newEntry.tags.includes(tag) ? newEntry.tags.filter(t => t !== tag) : [...newEntry.tags, tag];
+                        setNewEntry({...newEntry, tags});
+                      }} className={`px-3 py-1 rounded-full text-sm transition-all ${newEntry.tags.includes(tag) ? 'bg-cyan-400 text-black' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>{tag}</button>
                     ))}
                   </div>
                 </div>
 
                 <div className="flex gap-3">
-                  <button
-                    onClick={handleAddEntry}
-                    className="flex-1 py-3 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors font-medium"
-                  >
-                    Save Entry
-                  </button>
-                  <button
-                    onClick={() => setShowNewEntry(false)}
-                    className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                  >
-                    Cancel
-                  </button>
+                  <button onClick={handleAddEntry} className="flex-1 py-3 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors font-medium">Save Entry</button>
+                  <button onClick={() => setShowNewEntry(false)} className="px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors">Cancel</button>
                 </div>
               </div>
             </div>
             </div>
           </div>
         )}
-
-        <div className="space-y-4">
-          {entries.map(entry => (
-            <div key={entry.id} className="bg-gray-900 rounded-xl border border-gray-800 p-6 hover:border-cyan-400/30 transition-all">
-              <div className="flex items-start gap-4">
-                <div className="text-4xl">{entry.mood}</div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-white text-lg font-light">{entry.title}</h3>
-                    <span className="text-gray-500 text-sm">{new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                  </div>
-                  <p className="text-gray-400 text-sm mb-3">{entry.content}</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {entry.tags.map(tag => (
-                      <span key={tag} className="px-2 py-1 bg-cyan-400/10 text-cyan-400 text-xs rounded-full border border-cyan-400/20">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     );
   };
@@ -4152,7 +4332,7 @@ const TennisApp = () => {
       { icon: <Target className="w-5 h-5" />, label: 'Home', view: 'dashboard' },
       { icon: <Calendar className="w-5 h-5" />, label: 'Calendar', view: 'calendar' },
       { icon: <Trophy className="w-5 h-5" />, label: 'Matches', view: 'matches' },
-      { icon: <Star className="w-5 h-5" />, label: 'Goals', view: 'goals' },
+      { icon: <BookOpen className="w-5 h-5" />, label: 'Journal', view: 'journal' },
       { icon: <Settings className="w-5 h-5" />, label: 'More', view: 'more' },
     ];
     const coachTabs = [
