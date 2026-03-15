@@ -76,8 +76,8 @@ const TennisApp = () => {
     { id: 17, title: 'Perfect Match', description: 'Win without losing a game', icon: '💯', category: 'Matches', unlocked: false, rarity: 'epic', howToUnlock: 'Win a match 6-0, 6-0 (or any perfect score)' },
     
     // UTR Milestones
-    { id: 18, title: 'UTR 2.0', description: 'Reach 2.0 UTR', icon: '2️⃣', category: 'UTR', unlocked: false, progress: 0, goal: 1, rarity: 'uncommon', howToUnlock: 'Achieve a 2.0 UTR rating' },
-    { id: 19, title: 'UTR 3.0', description: 'Reach 3.0 UTR', icon: '3️⃣', category: 'UTR', unlocked: false, progress: 0, goal: 1, rarity: 'rare', howToUnlock: 'Achieve a 3.0 UTR rating' },
+    { id: 18, title: 'UTR 2.0', description: 'Reach 2.0 UTR', icon: '2️⃣', category: 'UTR', unlocked: true, rarity: 'uncommon', howToUnlock: 'Achieve a 2.0 UTR rating' },
+    { id: 19, title: 'UTR 3.0', description: 'Reach 3.0 UTR', icon: '3️⃣', category: 'UTR', unlocked: true, rarity: 'rare', howToUnlock: 'Achieve a 3.0 UTR rating' },
     { id: 20, title: 'UTR 4.0', description: 'Reach 4.0 UTR', icon: '4️⃣', category: 'UTR', unlocked: false, progress: 0, goal: 1, rarity: 'epic', howToUnlock: 'Achieve a 4.0 UTR rating' },
     { id: 21, title: 'UTR 5.0', description: 'Reach 5.0 UTR', icon: '5️⃣', category: 'UTR', unlocked: false, progress: 0, goal: 1, rarity: 'legendary', howToUnlock: 'Achieve a 5.0 UTR rating - elite level!' },
     { id: 22, title: 'Rising Star', description: 'Improve UTR by 0.5', icon: '📈', category: 'UTR', unlocked: true, rarity: 'uncommon', unlockedDate: '2026-01-08', howToUnlock: 'Improve your UTR by 0.5 points' },
@@ -93,9 +93,7 @@ const TennisApp = () => {
     { id: 28, title: 'Night Owl', description: 'Practice after 8pm', icon: '🌙', category: 'Special', unlocked: true, rarity: 'rare', unlockedDate: '2026-01-12', howToUnlock: 'Complete a practice session after 8:00 PM' },
     { id: 29, title: 'All-Weather', description: 'Practice in rain', icon: '🌧️', category: 'Special', unlocked: false, rarity: 'epic', howToUnlock: 'Complete a practice during rainy weather - true dedication!' },
     { id: 30, title: 'Century', description: 'Record 100 total activities', icon: '💯', category: 'Special', unlocked: false, progress: 45, goal: 100, rarity: 'epic', howToUnlock: 'Log 100 total activities (practices + matches)' },
-  ]);
-
-  const [selectedAchievement, setSelectedAchievement] = useState(null);
+  ]); useState(null);
 
   const [userSettings, setUserSettings] = useState({
     username: '',
@@ -104,19 +102,20 @@ const TennisApp = () => {
     displayBadges: [] // Array of achievement IDs to display as badges (max 3)
   });
 
-  // Academy state
-  const [academy, setAcademy] = useState({
-    name: '',
-    code: '',
-    emoji: '🎾',
-    location: '',
-    coaches: [],
-    connected: false
+  // Academy state - separate for player and parent so they're independent
+  const [playerAcademy, setPlayerAcademy] = useState({
+    name: '', code: '', emoji: '🎾', location: '', coaches: [], connected: false, status: 'none'
+  });
+  const [parentAcademy, setParentAcademy] = useState({
+    name: '', code: '', emoji: '🎾', location: '', coaches: [], connected: false, status: 'none'
   });
 
   const [students, setStudents] = useState([]); // For coaches to see their students
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
+  // Parent-to-child link requests (player sees these)
+  const [parentLinkRequests, setParentLinkRequests] = useState([]);
 
   // Whiteboard state
   const [showWhiteboard, setShowWhiteboard] = useState(false);
@@ -277,7 +276,7 @@ const TennisApp = () => {
   // Add new practice modal state
   const [showAddPractice, setShowAddPractice] = useState(false);
   const [newPractice, setNewPractice] = useState({
-    date: '',
+    date: new Date().toISOString().split('T')[0],
     fromTime: '',
     toTime: '',
     focusAreas: [],
@@ -328,76 +327,38 @@ const TennisApp = () => {
 
     setPractices(prev => [...prev, practiceToAdd].sort((a, b) => new Date(a.date) - new Date(b.date)));
 
-    setNewPractice({ date: '', fromTime: '', toTime: '', focusAreas: [], notes: '' });
+    setNewPractice({ date: new Date().toISOString().split('T')[0], fromTime: '', toTime: '', focusAreas: [], notes: '' });
     setShowAddPractice(false);
     alert('Practice logged!');
   };
 
-  // Set up academy when user logs in as coach
+  // Set up academy when user logs in as coach (coach is always connected - they ARE the academy)
+  const [coachAcademy, setCoachAcademy] = useState({
+    name: 'Farm & Forge Tennis',
+    code: 'ACAD-F4RG3',
+    emoji: '🎾',
+    location: 'Nashville, TN',
+    coaches: [
+      { id: 1, name: 'Coach Mike', emoji: '👨‍🏫', role: 'Head Coach' },
+      { id: 2, name: 'Coach Sarah', emoji: '👩‍🏫', role: 'Assistant Coach' },
+    ],
+    connected: true,
+    status: 'approved'
+  });
+
+  // Load mock students for coach
   useEffect(() => {
-    if (userRole === 'coach' && !academy.connected) {
-      const code = 'ACAD-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-      setAcademy({
-        name: 'Farm & Forge Tennis',
-        code: code,
-        emoji: '🎾',
-        location: 'College Grove, TN',
-        coaches: [
-          { id: 1, name: userSettings.username || 'Coach Mike', emoji: '👨‍🏫', role: 'Head Coach' },
-          { id: 2, name: 'Coach Sarah', emoji: '👩‍🏫', role: 'Assistant Coach' },
-        ],
-        connected: true
-      });
-      setUserSettings(prev => ({...prev, academyCode: code}));
-      
-      // Load mock students for demo (in real app, this comes from database)
+    if (userRole === 'coach' && students.length === 0) {
       setStudents([
-        { 
-          id: 1, 
-          name: 'Emma Johnson', 
-          email: 'emma@example.com',
-          emoji: '😀',
-          currentUTR: 3.8,
-          goalUTR: 5.0,
-          matches: 15,
-          wins: 10,
-          practices: 28,
-          lastActive: '2 hours ago',
-          lastCoach: 'Coach Mike'
-        },
-        { 
-          id: 2, 
-          name: 'Alex Rivera', 
-          email: 'alex@example.com',
-          emoji: '🎾',
-          currentUTR: 4.2,
-          goalUTR: 5.5,
-          matches: 22,
-          wins: 15,
-          practices: 35,
-          lastActive: '1 day ago',
-          lastCoach: 'Coach Sarah'
-        }
+        { id: 1, name: 'Emma Johnson', email: 'emma@example.com', emoji: '😀', currentUTR: 3.8, goalUTR: 5.0, matches: 15, wins: 10, practices: 28, lastActive: '2 hours ago', lastCoach: 'Coach Mike' },
+        { id: 2, name: 'Alex Rivera', email: 'alex@example.com', emoji: '🎾', currentUTR: 4.2, goalUTR: 5.5, matches: 22, wins: 15, practices: 35, lastActive: '1 day ago', lastCoach: 'Coach Sarah' },
       ]);
     }
   }, [userRole]);
 
-  // Set up academy for players/parents
-  useEffect(() => {
-    if ((userRole === 'player' || userRole === 'parent') && playerInfo.academyCode && !academy.connected) {
-      setAcademy({
-        name: 'Farm & Forge Tennis',
-        code: playerInfo.academyCode,
-        emoji: '🎾',
-        location: 'College Grove, TN',
-        coaches: [
-          { id: 1, name: 'Coach Mike', emoji: '👨‍🏫', role: 'Head Coach' },
-          { id: 2, name: 'Coach Sarah', emoji: '👩‍🏫', role: 'Assistant Coach' },
-        ],
-        connected: true
-      });
-    }
-  }, [userRole, playerInfo.academyCode]);
+  // The active academy depends on role - coach always has it, player/parent must join
+  const activeAcademy = userRole === 'coach' ? coachAcademy : userRole === 'parent' ? parentAcademy : playerAcademy;
+  const setActiveAcademyState = userRole === 'parent' ? setParentAcademy : setPlayerAcademy;
 
   const [utrHistory, setUtrHistory] = useState([
     { date: '2025-03-15', utr: 2.50, change: 0, source: 'Initial' },
@@ -550,20 +511,23 @@ const TennisApp = () => {
       // Already set during signup form
     }
     
-    // If student entered an academy code during signup, connect them
+    // If student/parent entered an academy code during signup, send a request
     if (playerInfo.academyCode) {
-      setAcademy({
+      const academyData = {
         name: 'Farm & Forge Tennis',
         code: playerInfo.academyCode,
         emoji: '🎾',
-        location: 'College Grove, TN',
+        location: 'Nashville, TN',
         coaches: [
           { id: 1, name: 'Coach Mike', emoji: '👨‍🏫', role: 'Head Coach' },
           { id: 2, name: 'Coach Sarah', emoji: '👩‍🏫', role: 'Assistant Coach' },
         ],
-        connected: true
-      });
-      alert('Successfully connected to your academy!');
+        connected: false,
+        status: 'pending'
+      };
+      if (finalRole === 'parent') setParentAcademy(academyData);
+      else setPlayerAcademy(academyData);
+      alert('Request sent to Farm & Forge Tennis! You\'ll be approved once the academy accepts.');
     }
     
     // Save all data to localStorage
@@ -898,7 +862,7 @@ const TennisApp = () => {
                   <input
                     type="text"
                     value={playerInfo.parentLinkedChild?.playerCode || ''}
-                    onChange={(e) => setPlayerInfo({...playerInfo, parentLinkedChild: { name: 'Emma Johnson', playerCode: e.target.value.toUpperCase(), id: 1 }})}
+                    onChange={(e) => setPlayerInfo({...playerInfo, parentLinkedChild: { name: playerInfo.name || 'Player', playerCode: e.target.value.toUpperCase(), id: 1 }})}
                     placeholder="e.g. PLAYER-X7K9M"
                     className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400 transition-colors"
                   />
@@ -1013,7 +977,7 @@ const TennisApp = () => {
         </button>
         <div 
           className="flex items-center gap-2 cursor-pointer group" 
-          onClick={() => setActiveView('settings')}
+          onClick={() => setActiveView('profile')}
         >
           {/* Display badges */}
           {(userSettings.displayBadges || []).length > 0 && (
@@ -1053,55 +1017,64 @@ const TennisApp = () => {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
-          {/* Dashboard + Profile always first */}
+          {/* Always visible */}
           <SidebarItem icon={<Target />} label="Dashboard" view="dashboard" />
           <SidebarItem icon={<User />} label="Profile" view="profile" />
           
-          {/* Section: Updates */}
-          <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Updates</span></div>
-          <SidebarItem icon={<MessageSquare />} label="Coach Notes" view="notes" />
-          <SidebarItem icon={<Users />} label="Team Chat" view="chat" />
-          {userRole === 'coach' && <SidebarItem icon={<Bell />} label="Notifications" view="notifications" />}
-          
-          {/* Section: My Tennis (Player) */}
+          {/* Section: My Tennis (Player - always available) */}
           {userRole === 'player' && (
             <>
               <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">My Tennis</span></div>
               <SidebarItem icon={<Trophy />} label="Match Records" view="matches" />
-              <SidebarItem icon={<Dumbbell />} label="Practice Log" view="calendar" />
+              <SidebarItem icon={<Calendar />} label="Calendar" view="calendar" />
               <SidebarItem icon={<BookOpen />} label="Journal & Goals" view="journal" />
-              <SidebarItem icon={<Search />} label="Scouting" view="scouting" />
+              {activeAcademy.connected && <SidebarItem icon={<Search />} label="Scouting" view="scouting" />}
               <SidebarItem icon={<Dumbbell />} label="Warmup" view="warmup" />
             </>
           )}
           
-          {/* Section: Child's Tennis (Parent) */}
-          {userRole === 'parent' && (
+          {/* Section: Child's Tennis (Parent - only when connected through child) */}
+          {userRole === 'parent' && activeAcademy.connected && (
             <>
               <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Child's Tennis</span></div>
               <SidebarItem icon={<Trophy />} label="Match Records" view="matches" />
               <SidebarItem icon={<BookOpen />} label="Journal & Goals" view="journal" />
             </>
           )}
-          
-          {/* Section: Academy (Coach) */}
-          {userRole === 'coach' && (
+
+          {/* === ACADEMY-ONLY SECTIONS (only show when connected) === */}
+          {activeAcademy.connected && (
             <>
+              {/* Section: Academy */}
               <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Academy</span></div>
-              <SidebarItem icon={<Users />} label="My Students" view="students" />
-              <SidebarItem icon={<ClipboardList />} label="Drills" view="drills" />
-              <SidebarItem icon={<BookOpen />} label="Classes" view="classes" />
+              <SidebarItem icon={<Bell />} label="Updates" view="updates" />
+              {userRole !== 'coach' && (
+                <>
+                  <SidebarItem icon={<MessageSquare />} label="Coach Notes" view="notes" />
+                  <SidebarItem icon={<Users />} label="Team Chat" view="chat" />
+                </>
+              )}
+              
+              {/* Coach items */}
+              {userRole === 'coach' && (
+                <>
+                  <SidebarItem icon={<Users />} label="My Students" view="students" />
+                  <SidebarItem icon={<ClipboardList />} label="Drills" view="drills" />
+                  <SidebarItem icon={<BookOpen />} label="Classes" view="classes" />
+                  <SidebarItem icon={<MessageSquare />} label="Coach Notes" view="notes" />
+                  <SidebarItem icon={<Users />} label="Team Chat" view="chat" />
+                </>
+              )}
+              
+              {/* Section: Schedule */}
+              <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Schedule</span></div>
+              <SidebarItem icon={<Clock />} label={userRole === 'coach' ? 'Scheduler' : userRole === 'parent' ? "Child's Schedule" : 'My Schedule'} view="scheduler" />
             </>
           )}
           
-          {/* Section: Schedule */}
-          <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Schedule</span></div>
-          <SidebarItem icon={<Calendar />} label="Calendar" view="calendar" />
-          <SidebarItem icon={<Clock />} label={userRole === 'coach' ? 'Scheduler' : userRole === 'parent' ? "Child's Schedule" : 'My Schedule'} view="scheduler" />
-          
           {/* Section: More */}
           <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">More</span></div>
-          {userRole === 'player' && <SidebarItem icon={<Star />} label="Achievements" view="achievements" />}
+          {userRole === 'player' && activeAcademy.connected && <SidebarItem icon={<Star />} label="Achievements" view="achievements" />}
           {userRole === 'parent' && <SidebarItem icon={<DollarSign />} label="Expenses" view="expenses" />}
           <SidebarItem icon={<Image />} label="Media" view="media" />
         </div>
@@ -1109,19 +1082,19 @@ const TennisApp = () => {
         <div className="flex-shrink-0 p-4 border-t border-gray-800">
           <div className="space-y-2">
             <button
-              onClick={() => setUserRole('player')}
+              onClick={() => { setUserRole('player'); setActiveView('dashboard'); }}
               className={`w-full px-3 py-2 rounded-lg text-sm transition-all ${userRole === 'player' ? 'bg-cyan-400 text-black' : 'text-gray-400 hover:bg-gray-900'}`}
             >
               Player View
             </button>
             <button
-              onClick={() => setUserRole('coach')}
+              onClick={() => { setUserRole('coach'); setActiveView('dashboard'); }}
               className={`w-full px-3 py-2 rounded-lg text-sm transition-all ${userRole === 'coach' ? 'bg-cyan-400 text-black' : 'text-gray-400 hover:bg-gray-900'}`}
             >
               Coach View
             </button>
             <button
-              onClick={() => setUserRole('parent')}
+              onClick={() => { setUserRole('parent'); setActiveView('dashboard'); }}
               className={`w-full px-3 py-2 rounded-lg text-sm transition-all ${userRole === 'parent' ? 'bg-cyan-400 text-black' : 'text-gray-400 hover:bg-gray-900'}`}
             >
               Parent View
@@ -1155,7 +1128,7 @@ const TennisApp = () => {
       const todayStr = new Date().toISOString().split('T')[0];
       const todayLessons = bookedLessons.filter(l => l.date === todayStr);
       const upcomingLessons = bookedLessons.filter(l => new Date(l.date) >= new Date()).sort((a,b) => new Date(a.date) - new Date(b.date));
-      const pendingRequests = bookedLessons.filter(l => l.status === 'pending');
+      const pendingBookings = bookedLessons.filter(l => l.status === 'pending');
       
       return (
         <div className="space-y-6">
@@ -1177,7 +1150,7 @@ const TennisApp = () => {
               <div className="text-gray-500 text-xs mt-1">Today's Sessions</div>
             </div>
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 text-center">
-              <div className="text-3xl font-light text-yellow-400">{pendingRequests.length}</div>
+              <div className="text-3xl font-light text-yellow-400">{pendingRequests.length + pendingBookings.length}</div>
               <div className="text-gray-500 text-xs mt-1">Pending Requests</div>
             </div>
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 text-center">
@@ -1236,20 +1209,58 @@ const TennisApp = () => {
               )}
             </div>
 
-            {/* Pending Requests */}
+            {/* Academy Join Requests */}
+            {pendingRequests.length > 0 && (
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+                <h3 className="text-lg font-light text-white mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-400" />
+                  Academy Join Requests ({pendingRequests.length})
+                </h3>
+                <div className="space-y-2">
+                  {pendingRequests.map(req => (
+                    <div key={req.id} className="flex items-center justify-between p-3 bg-black rounded-lg border border-purple-400/20">
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl">{req.emoji}</div>
+                        <div>
+                          <div className="text-white text-sm">{req.name}</div>
+                          <div className="text-gray-500 text-xs">{req.role} · {req.email}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => {
+                          setPendingRequests(prev => prev.filter(r => r.id !== req.id));
+                          // Approve the right role's academy
+                          if (req.role === 'parent') {
+                            setParentAcademy(prev => ({...prev, connected: true, status: 'approved'}));
+                          } else {
+                            setPlayerAcademy(prev => ({...prev, connected: true, status: 'approved'}));
+                          }
+                          alert(req.name + ' approved!');
+                        }} className="px-3 py-1.5 bg-green-400 text-black rounded-lg text-xs font-medium">Approve</button>
+                        <button onClick={() => {
+                          setPendingRequests(prev => prev.filter(r => r.id !== req.id));
+                        }} className="px-3 py-1.5 bg-gray-800 text-red-400 rounded-lg text-xs">Deny</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pending Booking Requests */}
             <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
               <h3 className="text-lg font-light text-white mb-4 flex items-center gap-2">
                 <Bell className="w-5 h-5 text-yellow-400" />
-                Pending Requests ({pendingRequests.length})
+                Pending Bookings ({pendingBookings.length})
               </h3>
-              {pendingRequests.length === 0 ? (
+              {pendingBookings.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <div className="text-3xl mb-2">✅</div>
                   <p className="text-sm">All caught up!</p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {pendingRequests.map(req => (
+                  {pendingBookings.map(req => (
                     <div key={req.id} className="flex items-center justify-between p-3 bg-black rounded-lg border border-yellow-400/20">
                       <div>
                         <div className="text-white text-sm">{req.student}</div>
@@ -1314,16 +1325,16 @@ const TennisApp = () => {
           {/* Academy Info + Code */}
           <div className="bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-xl border border-cyan-400/30 p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="text-3xl">{academy.emoji}</div>
+              <div className="text-3xl">{activeAcademy.emoji}</div>
               <div>
-                <h3 className="text-lg font-light text-white">{academy.name}</h3>
-                <p className="text-gray-400 text-sm">{academy.location}</p>
+                <h3 className="text-lg font-light text-white">{activeAcademy.name}</h3>
+                <p className="text-gray-400 text-sm">{activeAcademy.location}</p>
               </div>
             </div>
             <div className="mb-4">
               <div className="text-gray-500 text-xs mb-1">Academy Coaches</div>
               <div className="flex gap-2 flex-wrap">
-                {academy.coaches.map(c => (
+                {activeAcademy.coaches.map(c => (
                   <div key={c.id} className="flex items-center gap-1.5 px-3 py-1.5 bg-black/40 rounded-full border border-gray-700">
                     <span>{c.emoji}</span>
                     <span className="text-xs text-gray-300">{c.name}</span>
@@ -1336,12 +1347,12 @@ const TennisApp = () => {
               <div className="flex-1 px-4 py-3 bg-black border border-cyan-400/30 rounded-lg">
                 <div className="text-xs text-gray-500 mb-0.5">Academy Code</div>
                 <div className="text-cyan-400 text-xl font-mono font-bold tracking-wider">
-                  {academy.code}
+                  {activeAcademy.code}
                 </div>
               </div>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(academy.code);
+                  navigator.clipboard.writeText(activeAcademy.code);
                   alert('Academy code copied!');
                 }}
                 className="px-4 py-3 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors font-medium"
@@ -1355,165 +1366,112 @@ const TennisApp = () => {
       );
     }
 
-    // Parent Dashboard
+    // Parent Dashboard - separate from player
     if (userRole === 'parent') {
-      const totalWins = matches.filter(m => m.result === 'Win').length;
-      const totalMatches = matches.length;
-      const winRate = totalMatches > 0 ? ((totalWins / totalMatches) * 100).toFixed(0) : 0;
-      const totalPracticeHrs = (practices.reduce((sum, p) => sum + (p.duration || 0), 0) / 60).toFixed(1);
-      const currentUTRVal = parseFloat(playerInfo.currentUTR) || 3.52;
-      const goalUTRVal = parseFloat(playerInfo.goalUTR) || 5.0;
-      const recentMatches = matches.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
-      
-      // This week's activity
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const weekPractices = practices.filter(p => new Date(p.date) > oneWeekAgo);
-      const weekMatches = matches.filter(m => new Date(m.date) > oneWeekAgo);
-      const weekHours = (weekPractices.reduce((sum, p) => sum + (p.duration || 0), 0) / 60).toFixed(1);
+      const parentLinked = parentAcademy.connected;
+      const parentPending = parentAcademy.status === 'pending';
+      const [childCode, setChildCode] = useState('');
 
       return (
         <div className="space-y-6">
-          <div>
-            <h2 className="text-3xl font-light text-white">Parent Dashboard</h2>
-            <p className="text-gray-400 mt-1">Overview of {playerInfo.name || 'your child'}'s tennis progress</p>
-          </div>
-
-          {/* Weekly Summary Card */}
-          <div className="bg-gradient-to-br from-purple-400/10 to-pink-500/10 rounded-2xl border border-purple-400/30 p-6">
-            <h3 className="text-white text-xl font-light mb-4 flex items-center gap-2">
-              📋 This Week's Summary
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-black/40 rounded-xl p-4 text-center">
-                <div className="text-3xl font-light text-purple-400">{weekPractices.length}</div>
-                <div className="text-xs text-gray-400 mt-1">Practice Sessions</div>
+          {/* Link to Child - the only thing parents need to do */}
+          {!parentLinked && !parentPending && (
+            <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl border border-purple-400/30 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="text-3xl">👦</div>
+                <div>
+                  <h3 className="text-xl font-light text-white">Connect to Your Child</h3>
+                  <p className="text-gray-400 text-sm">Enter your child's Player Code to link your accounts</p>
+                </div>
               </div>
-              <div className="bg-black/40 rounded-xl p-4 text-center">
-                <div className="text-3xl font-light text-pink-400">{weekHours}h</div>
-                <div className="text-xs text-gray-400 mt-1">Hours on Court</div>
+              <div className="flex gap-2">
+                <input type="text" value={childCode} onChange={(e) => setChildCode(e.target.value.toUpperCase())} placeholder="Enter Player Code (e.g. PLAYER-X7K9M)" className="flex-1 px-4 py-3 bg-black border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-purple-400 font-mono" />
+                <button onClick={() => {
+                  if (childCode.trim()) {
+                    setParentAcademy({ name: 'Farm & Forge Tennis', code: childCode, emoji: '🎾', location: 'Nashville, TN', coaches: [{ id: 1, name: 'Coach Mike', emoji: '👨‍🏫', role: 'Head Coach' }, { id: 2, name: 'Coach Sarah', emoji: '👩‍🏫', role: 'Assistant Coach' }], connected: false, status: 'pending' });
+                    setParentLinkRequests(prev => [...prev, { id: Date.now(), name: userSettings.username || 'Parent', playerCode: childCode, date: new Date().toISOString().split('T')[0] }]);
+                    alert('Request sent to your child! They\'ll need to approve the connection.');
+                  }
+                }} className="px-5 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-400 transition-colors font-medium text-sm">Link</button>
               </div>
-              <div className="bg-black/40 rounded-xl p-4 text-center">
-                <div className="text-3xl font-light text-cyan-400">{weekMatches.length}</div>
-                <div className="text-xs text-gray-400 mt-1">Matches Played</div>
+              <p className="text-gray-600 text-xs mt-2">Get this code from your child's profile in TennisTrack</p>
+            </div>
+          )}
+
+          {/* Pending approval from child */}
+          {parentPending && !parentLinked && (
+            <div className="bg-yellow-400/5 rounded-2xl border border-yellow-400/30 p-5 flex items-center gap-4">
+              <div className="text-3xl">⏳</div>
+              <div className="flex-1">
+                <div className="text-yellow-400 font-medium">Waiting for Approval</div>
+                <div className="text-gray-400 text-sm">Your child needs to approve the connection from their account</div>
               </div>
+              <span className="px-3 py-1 bg-yellow-400/10 text-yellow-400 text-xs rounded-full border border-yellow-400/30">Pending</span>
             </div>
-          </div>
+          )}
 
-          {/* Key Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-              <div className="text-gray-400 text-sm mb-1">UTR Rating</div>
-              <div className="text-3xl font-light text-cyan-400">{currentUTRVal}</div>
-              <div className="text-xs text-gray-500">Goal: {goalUTRVal}</div>
-            </div>
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-              <div className="text-gray-400 text-sm mb-1">Win Rate</div>
-              <div className="text-3xl font-light text-green-400">{winRate}%</div>
-              <div className="text-xs text-gray-500">{totalWins}W - {totalMatches - totalWins}L</div>
-            </div>
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-              <div className="text-gray-400 text-sm mb-1">Total Hours</div>
-              <div className="text-3xl font-light text-blue-400">{totalPracticeHrs}</div>
-              <div className="text-xs text-gray-500">{practices.filter(p => p.duration).length} sessions</div>
-            </div>
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-              <div className="text-gray-400 text-sm mb-1">Streak</div>
-              <div className="text-3xl font-light text-orange-400">{practiceStreak}🔥</div>
-              <div className="text-xs text-gray-500">days in a row</div>
-            </div>
-          </div>
+          {/* Connected - show everything */}
+          {parentLinked && (
+            <>
+              {/* Connected child card */}
+              <div className="bg-green-400/5 rounded-xl border border-green-400/20 p-4 flex items-center gap-3">
+                <span className="text-2xl">😀</span>
+                <div className="flex-1">
+                  <div className="text-white font-medium">{playerInfo.parentLinkedChild?.name || 'Your Child'}</div>
+                  <div className="text-gray-500 text-xs">Farm & Forge Tennis · Nashville, TN</div>
+                </div>
+                <span className="px-2 py-0.5 bg-green-400/10 text-green-400 text-xs rounded-full border border-green-400/30">✓ Connected</span>
+              </div>
 
-          {/* UTR Progress Visual */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-            <h3 className="text-lg font-light text-white mb-4">UTR Progress</h3>
-            <div className="relative h-4 bg-gray-800 rounded-full overflow-hidden mb-2">
-              <div 
-                className="absolute h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-500"
-                style={{ width: `${(currentUTRVal / goalUTRVal) * 100}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-cyan-400">{currentUTRVal} current</span>
-              <span className="text-gray-400">{(goalUTRVal - currentUTRVal).toFixed(2)} to go</span>
-              <span className="text-gray-500">{goalUTRVal} goal</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Recent Match Results */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-              <h3 className="text-lg font-light text-white mb-4 flex items-center gap-2">
-                🎾 Recent Matches
-              </h3>
-              <div className="space-y-2">
-                {recentMatches.map(m => (
-                  <div key={m.id} className={`flex items-center justify-between p-3 rounded-lg border ${m.result === 'Win' ? 'bg-green-400/5 border-green-400/20' : 'bg-red-400/5 border-red-400/20'}`}>
-                    <div>
-                      <div className="text-white text-sm">vs {m.opponent}</div>
-                      <div className="text-gray-500 text-xs">{new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-sm font-medium ${m.result === 'Win' ? 'text-green-400' : 'text-red-400'}`}>{m.result}</div>
-                      <div className="text-gray-400 text-xs">{m.score}</div>
-                    </div>
+              {/* Child's Quick Stats */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+                <h3 className="text-white font-light mb-3">Child's Stats</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-3 bg-black/40 rounded-xl">
+                    <div className="text-2xl font-light text-cyan-400">{parseFloat(playerInfo.currentUTR) || 3.52}</div>
+                    <div className="text-xs text-gray-500">UTR</div>
                   </div>
-                ))}
+                  <div className="text-center p-3 bg-black/40 rounded-xl">
+                    <div className="text-2xl font-light text-green-400">{matches.length}</div>
+                    <div className="text-xs text-gray-500">Matches</div>
+                  </div>
+                  <div className="text-center p-3 bg-black/40 rounded-xl">
+                    <div className="text-2xl font-light text-blue-400">{(practices.reduce((sum, p) => sum + (p.duration || 0), 0) / 60).toFixed(1)}h</div>
+                    <div className="text-xs text-gray-500">Practice</div>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Coach Communication */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-              <h3 className="text-lg font-light text-white mb-4 flex items-center gap-2">
-                📝 Coach Feedback
-              </h3>
-              {coachFeedback.length > 0 ? (
-                <div className="space-y-3">
-                  {coachFeedback.map(f => (
-                    <div key={f.id} className="p-4 bg-black rounded-lg border border-gray-800">
-                      <div className="text-sm text-gray-400 mb-2">{f.date}</div>
-                      <div className="text-white text-sm font-light mb-2">{f.feedback}</div>
-                      <div className="flex gap-2 flex-wrap">
-                        {f.areas.map(area => (
-                          <span key={area} className="px-2 py-1 bg-cyan-400/10 text-cyan-400 text-xs rounded-full border border-cyan-400/20">{area}</span>
-                        ))}
+              {/* Recent matches */}
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+                <h3 className="text-white font-light mb-3">Recent Matches</h3>
+                <div className="space-y-2">
+                  {matches.slice(0, 3).map(m => (
+                    <div key={m.id} className="flex items-center justify-between p-3 bg-black rounded-lg border border-gray-800">
+                      <div>
+                        <div className="text-white text-sm">vs {m.opponent}</div>
+                        <div className="text-gray-500 text-xs">{m.score}</div>
                       </div>
+                      <span className={`px-2 py-0.5 rounded text-xs ${m.result === 'Win' ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'}`}>{m.result}</span>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <p>No coach feedback yet</p>
-                </div>
-              )}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
 
-          {/* Upcoming Schedule */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-            <h3 className="text-lg font-light text-white mb-4 flex items-center gap-2">
-              📅 Upcoming Schedule
-            </h3>
-            <div className="space-y-2">
-              {practices.filter(p => new Date(p.date) > new Date()).sort((a,b) => new Date(a.date) - new Date(b.date)).slice(0, 5).map(p => (
-                <div key={p.id} className="flex items-center justify-between p-3 bg-black rounded-lg border border-gray-800">
-                  <div>
-                    <div className="text-white text-sm">{p.notes || p.type}</div>
-                    <div className="text-gray-500 text-xs">{new Date(p.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at {p.time}</div>
-                  </div>
-                  {p.duration && <div className="text-blue-400 text-sm">{p.duration} min</div>}
-                </div>
-              ))}
-              {practices.filter(p => new Date(p.date) > new Date()).length === 0 && (
-                <div className="text-center py-4 text-gray-500 text-sm">No upcoming events scheduled</div>
-              )}
+          {/* Empty state */}
+          {!parentLinked && !parentPending && (
+            <div className="text-center py-8 text-gray-600">
+              <div className="text-4xl mb-3">🎾</div>
+              <p className="text-sm">Link to your child's account to see their tennis journey</p>
             </div>
-          </div>
+          )}
         </div>
       );
     }
 
-    // Player/Parent Dashboard
+    // Player Dashboard
     const currentUTR = parseFloat(playerInfo.currentUTR) || 3.52;
     const goalUTR = parseFloat(playerInfo.goalUTR) || 5.0;
     const progress = ((currentUTR / goalUTR) * 100).toFixed(0);
@@ -1532,6 +1490,140 @@ const TennisApp = () => {
 
     return (
     <div className="space-y-6">
+      {/* Parent Link Requests - player sees these */}
+      {parentLinkRequests.length > 0 && (
+        <div className="bg-purple-400/5 rounded-2xl border border-purple-400/30 p-5">
+          <h3 className="text-lg font-light text-white mb-3 flex items-center gap-2">
+            <Users className="w-5 h-5 text-purple-400" />
+            Parent Connection Request
+          </h3>
+          <div className="space-y-2">
+            {parentLinkRequests.map(req => (
+              <div key={req.id} className="flex items-center justify-between p-3 bg-black rounded-lg border border-purple-400/20">
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">👤</div>
+                  <div>
+                    <div className="text-white text-sm">{req.name} wants to connect as your parent</div>
+                    <div className="text-gray-500 text-xs">Sent {req.date}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => {
+                    setParentLinkRequests(prev => prev.filter(r => r.id !== req.id));
+                    setParentAcademy(prev => ({...prev, connected: true, status: 'approved'}));
+                    setPlayerInfo(prev => ({...prev, parentLinkedChild: { name: playerInfo.name || 'Player', playerCode: req.playerCode, id: 1 }}));
+                    alert(req.name + ' approved! They can now see your activity.');
+                  }} className="px-3 py-1.5 bg-green-400 text-black rounded-lg text-xs font-medium">Approve</button>
+                  <button onClick={() => {
+                    setParentLinkRequests(prev => prev.filter(r => r.id !== req.id));
+                  }} className="px-3 py-1.5 bg-gray-800 text-red-400 rounded-lg text-xs">Deny</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Join Academy - shows when not connected */}
+      {!activeAcademy.connected && activeAcademy.status !== 'pending' && (
+        <div className="bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-cyan-500/10 rounded-2xl border border-purple-400/30 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="text-3xl">🏫</div>
+            <div>
+              <h3 className="text-xl font-light text-white">Join an Academy</h3>
+              <p className="text-gray-400 text-sm">Enter your academy's code to connect</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={playerInfo.academyCode || ''}
+              onChange={(e) => setPlayerInfo({...playerInfo, academyCode: e.target.value.toUpperCase()})}
+              placeholder="Enter academy code (e.g. ACAD-X7K9M2)"
+              className="flex-1 px-4 py-3 bg-black border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-purple-400 font-mono"
+            />
+            <button
+              onClick={() => {
+                if (playerInfo.academyCode?.trim()) {
+                  const academyData = {
+                    name: 'Farm & Forge Tennis',
+                    code: playerInfo.academyCode,
+                    emoji: '🎾',
+                    location: 'Nashville, TN',
+                    coaches: [
+                      { id: 1, name: 'Coach Mike', emoji: '👨‍🏫', role: 'Head Coach' },
+                      { id: 2, name: 'Coach Sarah', emoji: '👩‍🏫', role: 'Assistant Coach' },
+                    ],
+                    connected: false,
+                    status: 'pending'
+                  };
+                  setActiveAcademyState(academyData);
+                  // Add to pending requests so coach sees it
+                  setPendingRequests(prev => [...prev, {
+                    id: Date.now(),
+                    name: playerInfo.name || userSettings.username || (userRole === 'parent' ? 'Parent' : 'Player'),
+                    role: userRole,
+                    email: loginForm.email || 'user@example.com',
+                    date: new Date().toISOString().split('T')[0],
+                    emoji: userSettings.profileEmoji || '🎾'
+                  }]);
+                  alert('Request sent to Farm & Forge Tennis! You\'ll be approved once the academy accepts.');
+                }
+              }}
+              className="px-5 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-400 transition-colors font-medium text-sm"
+            >
+              Join
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Pending approval notice */}
+      {activeAcademy.status === 'pending' && !activeAcademy.connected && (
+        <div className="bg-yellow-400/5 rounded-2xl border border-yellow-400/30 p-5 flex items-center gap-4">
+          <div className="text-3xl">⏳</div>
+          <div className="flex-1">
+            <div className="text-yellow-400 font-medium">Approval Pending</div>
+            <div className="text-gray-400 text-sm">Waiting for {activeAcademy.name} to approve you</div>
+          </div>
+          <span className="px-3 py-1 bg-yellow-400/10 text-yellow-400 text-xs rounded-full border border-yellow-400/30">Pending</span>
+        </div>
+      )}
+
+      {/* NOT CONNECTED - show N/A stats */}
+      {!activeAcademy.connected && (
+        <div className="space-y-6">
+          <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+            <h3 className="text-white text-xl font-light mb-4">Your Stats</h3>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="text-center p-3 bg-black/40 rounded-xl">
+                <div className="text-2xl font-light text-gray-600">N/A</div>
+                <div className="text-xs text-gray-600">UTR</div>
+              </div>
+              <div className="text-center p-3 bg-black/40 rounded-xl">
+                <div className="text-2xl font-light text-gray-600">N/A</div>
+                <div className="text-xs text-gray-600">Win Rate</div>
+              </div>
+              <div className="text-center p-3 bg-black/40 rounded-xl">
+                <div className="text-2xl font-light text-gray-600">N/A</div>
+                <div className="text-xs text-gray-600">Hours</div>
+              </div>
+              <div className="text-center p-3 bg-black/40 rounded-xl">
+                <div className="text-2xl font-light text-gray-600">N/A</div>
+                <div className="text-xs text-gray-600">Streak</div>
+              </div>
+            </div>
+          </div>
+          <div className="text-center py-8 text-gray-600">
+            <div className="text-4xl mb-3">🎾</div>
+            <p className="text-sm">Join an academy to start tracking your tennis journey</p>
+          </div>
+        </div>
+      )}
+
+      {/* CONNECTED - show full dashboard */}
+      {activeAcademy.connected && (
+      <>
       {/* UTR Goal Tracker - Enhanced */}
       {playerInfo.goalUTR && (
         <div className="bg-gradient-to-br from-cyan-400/10 via-blue-500/10 to-purple-500/10 rounded-2xl border border-cyan-400/30 p-6">
@@ -1823,7 +1915,8 @@ const TennisApp = () => {
         </div>
       )}
 
-      {/* Achievements */}
+      {/* Achievements - only when connected to academy */}
+      {activeAcademy.connected && (
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-light text-white flex items-center gap-2">
@@ -1865,6 +1958,7 @@ const TennisApp = () => {
           )}
         </div>
       </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div 
@@ -1896,6 +1990,7 @@ const TennisApp = () => {
           </div>
         </div>
 
+        {activeAcademy.connected && (
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
           <h3 className="text-lg font-light text-white mb-4 flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-cyan-400" />
@@ -1917,7 +2012,10 @@ const TennisApp = () => {
             ))}
           </div>
         </div>
+        )}
       </div>
+      </>
+      )}
     </div>
   )};
 
@@ -2299,9 +2397,13 @@ const TennisApp = () => {
     }
 
     const eventTypes = {
-      Practice: { color: 'bg-blue-500', textColor: 'text-blue-400', borderColor: 'border-blue-400' },
-      Match: { color: 'bg-green-500', textColor: 'text-green-400', borderColor: 'border-green-400' },
-      Tournament: { color: 'bg-purple-500', textColor: 'text-purple-400', borderColor: 'border-purple-400' }
+      Practice: { color: 'bg-blue-500', textColor: 'text-blue-400', borderColor: 'border-blue-400', icon: '🎾' },
+      Match: { color: 'bg-green-500', textColor: 'text-green-400', borderColor: 'border-green-400', icon: '🏆' },
+      Tournament: { color: 'bg-purple-500', textColor: 'text-purple-400', borderColor: 'border-purple-400', icon: '🏅' },
+      'Private Lesson': { color: 'bg-cyan-500', textColor: 'text-cyan-400', borderColor: 'border-cyan-400', icon: '👤', coachOnly: true },
+      'Group Class': { color: 'bg-orange-500', textColor: 'text-orange-400', borderColor: 'border-orange-400', icon: '👥', coachOnly: true },
+      'Meeting': { color: 'bg-pink-500', textColor: 'text-pink-400', borderColor: 'border-pink-400', icon: '📋', coachOnly: true },
+      'Event': { color: 'bg-yellow-500', textColor: 'text-yellow-400', borderColor: 'border-yellow-400', icon: '⭐', coachOnly: true },
     };
 
     const handleAddEvent = () => {
@@ -2323,25 +2425,48 @@ const TennisApp = () => {
         ? `${newEvent.fromTime} - ${newEvent.toTime}`
         : newEvent.fromTime;
 
+      // Build title with context
+      let eventTitle = newEvent.title || newEvent.type;
+      if (newEvent.type === 'Private Lesson' && newEvent.student) {
+        eventTitle = `Private Lesson: ${newEvent.student}`;
+      } else if (newEvent.type === 'Meeting' && newEvent.attendee) {
+        eventTitle = `Meeting: ${newEvent.attendee}`;
+      }
+
       const eventToAdd = {
-        id: practices.length + 1,
+        id: Date.now(),
         date: newEvent.date,
         time: timeDisplay,
         duration: duration > 0 ? duration : undefined,
         type: newEvent.type,
-        title: newEvent.title || newEvent.type,
+        title: eventTitle,
         notes: newEvent.notes
       };
 
       setPractices([...practices, eventToAdd].sort((a, b) => new Date(a.date) - new Date(b.date)));
       
+      // Also add to booked lessons if it's a private lesson
+      if (newEvent.type === 'Private Lesson' && newEvent.student) {
+        setBookedLessons(prev => [...prev, {
+          id: Date.now() + 1,
+          student: newEvent.student,
+          coach: userSettings.username || 'Coach',
+          date: newEvent.date,
+          time: newEvent.fromTime,
+          duration: duration > 0 ? duration : 60,
+          status: 'confirmed'
+        }]);
+      }
+
       setNewEvent({
         type: 'Practice',
         date: '',
         fromTime: '',
         toTime: '',
         title: '',
-        notes: ''
+        notes: '',
+        student: '',
+        attendee: ''
       });
       setShowAddEvent(false);
       alert('Event added successfully!');
@@ -2584,22 +2709,69 @@ const TennisApp = () => {
               <div>
                 <label className="block text-gray-400 text-sm mb-2">Event Type</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {Object.keys(eventTypes).map(type => (
+                  {Object.entries(eventTypes).filter(([_, v]) => !v.coachOnly || userRole === 'coach').map(([type, style]) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => setNewEvent({...newEvent, type})}
-                      className={`px-4 py-3 rounded-lg transition-all ${
+                      className={`px-3 py-2.5 rounded-lg transition-all text-sm ${
                         newEvent.type === type
-                          ? `${eventTypes[type].textColor} bg-${type === 'Practice' ? 'blue' : type === 'Match' ? 'green' : 'purple'}-500/20 border ${eventTypes[type].borderColor}`
+                          ? `${style.textColor} bg-gray-800 border ${style.borderColor}`
                           : 'bg-gray-800 text-gray-400 border border-gray-700'
                       }`}
                     >
-                      {type}
+                      {style.icon} {type}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {/* Student selector for Private Lesson (coach only) */}
+              {userRole === 'coach' && newEvent.type === 'Private Lesson' && (
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Student</label>
+                  <select
+                    value={newEvent.student || ''}
+                    onChange={(e) => setNewEvent({...newEvent, student: e.target.value})}
+                    className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="">Select student...</option>
+                    {students.map(s => <option key={s.id} value={s.name}>{s.name} (UTR {s.currentUTR})</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Class tier selector for Group Class (coach only) */}
+              {userRole === 'coach' && newEvent.type === 'Group Class' && (
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Class Tier</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Elite', 'Next Gen', 'Up & Coming Stars'].map(tier => (
+                      <button key={tier} type="button" onClick={() => setNewEvent({...newEvent, title: tier + ' Class'})}
+                        className={`px-3 py-2.5 rounded-lg text-sm transition-all ${newEvent.title === tier + ' Class' ? 'bg-cyan-400/20 text-cyan-400 border border-cyan-400/30' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
+                        {tier}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Attendees for Meeting (coach only) */}
+              {userRole === 'coach' && newEvent.type === 'Meeting' && (
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">Meeting With</label>
+                  <select
+                    value={newEvent.attendee || ''}
+                    onChange={(e) => setNewEvent({...newEvent, attendee: e.target.value})}
+                    className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400"
+                  >
+                    <option value="">Select...</option>
+                    <option value="All Coaches">All Coaches</option>
+                    <option value="Parents">Parent Meeting</option>
+                    {activeAcademy.coaches.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -2717,17 +2889,32 @@ const TennisApp = () => {
         </div>
       )}
 
+      {/* Color Code Legend */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div className="flex flex-wrap gap-3">
+          {Object.entries(eventTypes).filter(([_, v]) => !v.coachOnly || userRole === 'coach').map(([type, style]) => (
+            <div key={type} className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${style.color}`}></div>
+              <span className="text-gray-400 text-xs">{style.icon} {type}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Events List Below Calendar */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
         <h3 className="text-lg font-light text-white mb-4">Upcoming Events</h3>
-        {practices.length === 0 ? (
+        {(() => {
+          const today = new Date().toISOString().split('T')[0];
+          const upcoming = practices.filter(p => p.date >= today).sort((a,b) => new Date(a.date) - new Date(b.date));
+          return upcoming.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            <p>No events scheduled</p>
-            <p className="text-sm mt-1">Add your first event to get started!</p>
+            <p>No upcoming events</p>
+            <p className="text-sm mt-1">Log a practice to see it here!</p>
           </div>
         ) : (
           <div className="space-y-3">
-            {practices.map(p => {
+            {upcoming.map(p => {
               const style = eventTypes[p.type] || eventTypes.Practice;
               return (
                 <div key={p.id} className={`p-4 bg-black rounded-lg border ${style.borderColor} hover:border-opacity-50 transition-all`}>
@@ -2746,7 +2933,8 @@ const TennisApp = () => {
               );
             })}
           </div>
-        )}
+        );
+        })()}
       </div>
     </div>
   )};
@@ -2771,7 +2959,7 @@ const TennisApp = () => {
 
     setMatches([matchToAdd, ...matches]);
     
-    if (academy.connected) {
+    if (activeAcademy.connected) {
       const notification = {
         id: Date.now(),
         type: 'match',
@@ -2980,6 +3168,43 @@ const TennisApp = () => {
                   Save Note
                 </button>
               </div>
+
+              {/* Questions & Student Responses */}
+              <div className="mt-6">
+                <h4 className="text-white font-light mb-3">Questions & Responses ({coachQuestions.filter(q => q.studentId === selectedNoteStudent.id).length})</h4>
+                <div className="space-y-3">
+                  {coachQuestions.filter(q => q.studentId === selectedNoteStudent.id).length === 0 ? (
+                    <div className="p-4 bg-black rounded-lg border border-gray-800 text-center text-gray-500 text-sm">
+                      No questions sent yet. Use the form above to ask your student something.
+                    </div>
+                  ) : (
+                    coachQuestions.filter(q => q.studentId === selectedNoteStudent.id).map(q => (
+                      <div key={q.id} className="p-4 bg-black rounded-lg border border-gray-800">
+                        <div className="flex items-start gap-3 mb-2">
+                          <div className="w-7 h-7 rounded-full bg-cyan-400/20 flex items-center justify-center text-xs text-cyan-400 flex-shrink-0">Q</div>
+                          <div>
+                            <div className="text-white text-sm">{q.question}</div>
+                            <div className="text-gray-600 text-xs mt-0.5">{q.date}</div>
+                          </div>
+                        </div>
+                        {q.response ? (
+                          <div className="flex items-start gap-3 ml-4 mt-3 p-3 bg-green-400/5 border border-green-400/20 rounded-lg">
+                            <div className="w-7 h-7 rounded-full bg-green-400/20 flex items-center justify-center text-xs text-green-400 flex-shrink-0">A</div>
+                            <div>
+                              <div className="text-gray-300 text-sm">{q.response}</div>
+                              <div className="text-green-400 text-xs mt-1">✓ Student replied</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="ml-4 mt-2 px-3 py-2 bg-yellow-400/5 border border-yellow-400/20 rounded-lg">
+                            <div className="text-yellow-400 text-xs">⏳ Waiting for student's response</div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -3018,13 +3243,13 @@ const TennisApp = () => {
     <div className="space-y-4">
       <h2 className="text-2xl font-light text-white">Coach Communication</h2>
       
-      {academy.connected && (
+      {activeAcademy.connected && (
         <div className="bg-gradient-to-br from-cyan-400/10 to-blue-500/10 rounded-xl border border-cyan-400/30 p-4 mb-4">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">{academy.emoji}</div>
+            <div className="text-2xl">{activeAcademy.emoji}</div>
             <div>
-              <div className="text-white text-sm font-medium">{academy.name}</div>
-              <div className="text-gray-400 text-xs">{academy.coaches.map(c => c.name).join(' · ')}</div>
+              <div className="text-white text-sm font-medium">{activeAcademy.name}</div>
+              <div className="text-gray-400 text-xs">{activeAcademy.coaches.map(c => c.name).join(' · ')}</div>
             </div>
           </div>
         </div>
@@ -3384,7 +3609,7 @@ const TennisApp = () => {
 
             {/* Icon */}
             <div className="text-center mb-3">
-              <div className={`text-6xl mb-2 ${achievement.unlocked ? 'animate-bounce-slow' : 'grayscale'}`}>
+              <div className={`text-6xl mb-2 ${achievement.unlocked ? '' : 'grayscale'}`}>
                 {achievement.unlocked ? achievement.icon : '🔒'}
               </div>
             </div>
@@ -3701,10 +3926,10 @@ const TennisApp = () => {
 
     const copyCoachCode = () => {
       try {
-        navigator.clipboard.writeText(academy.code);
+        navigator.clipboard.writeText(activeAcademy.code);
         alert('Academy code copied to clipboard!');
       } catch(e) {
-        alert('Academy code: ' + academy.code);
+        alert('Academy code: ' + activeAcademy.code);
       }
     };
 
@@ -3957,7 +4182,7 @@ const TennisApp = () => {
             <div className="flex items-center gap-3 mb-4">
               <div className="flex-1 px-6 py-4 bg-black border border-cyan-400/30 rounded-lg">
                 <div className="text-cyan-400 text-2xl font-mono font-bold tracking-wider text-center">
-                  {academy.code}
+                  {activeAcademy.code}
                 </div>
               </div>
               <button
@@ -3970,7 +4195,7 @@ const TennisApp = () => {
 
             <div className="p-4 bg-cyan-400/5 rounded-lg border border-cyan-400/20">
               <p className="text-cyan-400 text-sm">
-                💡 <strong>How it works:</strong> Students and parents enter this code during signup to automatically join {academy.name}
+                💡 <strong>How it works:</strong> Students and parents enter this code during signup to automatically join {activeAcademy.name}
               </p>
             </div>
           </div>
@@ -4303,6 +4528,268 @@ const TennisApp = () => {
             </div>
           </div>
         )}
+      </div>
+    );
+  };
+
+  // Academy Updates Feed
+  const UpdatesView = () => {
+    const [updates, setUpdates] = useState([
+      {
+        id: 1,
+        author: 'Coach Mike',
+        authorRole: 'Head Coach',
+        authorEmoji: '👨‍🏫',
+        time: '2 hours ago',
+        text: '🎾 The outside clay courts are now OPEN! Before you enter the main doors, turn left and follow the path past the pro shop. Courts 5-8 are clay. Please bring proper clay court shoes — no hard court soles on the clay!',
+        image: 'clay',
+        likes: 12,
+        liked: false,
+        replies: [
+          { id: 1, author: 'Emma', emoji: '😀', text: 'Finally!! Can\'t wait to play on clay!', time: '1 hour ago' },
+          { id: 2, author: 'Alex', emoji: '🎾', text: 'Do we need different shoes for clay?', time: '45 min ago' },
+          { id: 3, author: 'Coach Mike', emoji: '👨‍🏫', text: 'Yes Alex! Clay court shoes have a herringbone pattern on the sole. Check with the pro shop if you need a pair.', time: '30 min ago' },
+        ]
+      },
+      {
+        id: 2,
+        author: 'Coach Sarah',
+        authorRole: 'Assistant Coach',
+        authorEmoji: '👩‍🏫',
+        time: '1 day ago',
+        text: '📅 Schedule change for next week: Tuesday\'s Next Gen class is moved from 4:00 PM to 4:30 PM due to court maintenance. Wednesday and Thursday stay the same. See you all there!',
+        image: null,
+        likes: 8,
+        liked: true,
+        replies: [
+          { id: 1, author: 'Jordan', emoji: '🎾', text: 'Got it, thanks Coach Sarah!', time: '23 hours ago' },
+        ]
+      },
+      {
+        id: 3,
+        author: 'Coach Mike',
+        authorRole: 'Head Coach',
+        authorEmoji: '👨‍🏫',
+        time: '3 days ago',
+        text: '🏆 Huge shoutout to our Elite squad for representing Farm & Forge at the Nashville Open this weekend! 3 players made it to the semifinals. Proud of the effort and sportsmanship from everyone. Let\'s keep building! 💪',
+        image: 'tournament',
+        likes: 24,
+        liked: true,
+        replies: [
+          { id: 1, author: 'Emma', emoji: '😀', text: 'That was so much fun! Thanks for coaching us through it', time: '3 days ago' },
+          { id: 2, author: 'Lisa (Parent)', emoji: '👤', text: 'So proud of all the kids! Great coaching team.', time: '2 days ago' },
+        ]
+      },
+    ]);
+    const [newPost, setNewPost] = useState('');
+    const [showNewPost, setShowNewPost] = useState(false);
+    const [expandedReplies, setExpandedReplies] = useState({});
+    const [replyText, setReplyText] = useState({});
+
+    const imagePlaceholders = {
+      'clay': { svg: () => (
+        <svg viewBox="0 0 400 180" className="w-full h-44 rounded-xl">
+          {/* Sky */}
+          <rect width="400" height="180" fill="#1E3A5F"/>
+          <circle cx="340" cy="35" r="20" fill="#FACC15" opacity="0.8"/>
+          {/* Clouds */}
+          <ellipse cx="80" cy="30" rx="30" ry="10" fill="#fff" opacity="0.15"/>
+          <ellipse cx="200" cy="20" rx="40" ry="12" fill="#fff" opacity="0.1"/>
+          {/* Trees */}
+          <circle cx="30" cy="70" r="20" fill="#166534" opacity="0.7"/>
+          <circle cx="370" cy="65" r="25" fill="#166534" opacity="0.6"/>
+          <rect x="27" y="85" width="6" height="20" fill="#78350F" opacity="0.6"/>
+          <rect x="367" y="85" width="6" height="20" fill="#78350F" opacity="0.6"/>
+          {/* Clay court */}
+          <rect x="60" y="90" width="280" height="85" rx="4" fill="#C2410C"/>
+          <rect x="65" y="95" width="270" height="75" rx="2" fill="#EA580C"/>
+          {/* Court lines */}
+          <line x1="200" y1="95" x2="200" y2="170" stroke="#fff" strokeWidth="2" opacity="0.8"/>
+          <rect x="100" y="95" width="200" height="75" fill="none" stroke="#fff" strokeWidth="2" opacity="0.8"/>
+          <rect x="100" y="120" width="200" height="0" stroke="#fff" strokeWidth="1.5" opacity="0.6"/>
+          {/* Net */}
+          <line x1="200" y1="95" x2="200" y2="170" stroke="#D4D4D4" strokeWidth="1" strokeDasharray="3 3"/>
+          <rect x="198" y="93" width="4" height="3" fill="#555"/>
+          {/* Net posts */}
+          <rect x="58" y="125" width="4" height="20" fill="#666"/>
+          <rect x="338" y="125" width="4" height="20" fill="#666"/>
+          <line x1="60" y1="128" x2="340" y2="128" stroke="#ccc" strokeWidth="1.5"/>
+          {/* Tennis balls */}
+          <circle cx="150" cy="140" r="4" fill="#C8E64C" stroke="#A3B835" strokeWidth="1"/>
+          <circle cx="260" cy="150" r="4" fill="#C8E64C" stroke="#A3B835" strokeWidth="1"/>
+          {/* Label */}
+          <rect x="120" y="60" width="160" height="24" rx="12" fill="#000" opacity="0.5"/>
+          <text x="200" y="76" textAnchor="middle" fill="#fff" fontSize="11" fontFamily="Arial" fontWeight="bold">🏟️ Clay Courts Now Open</text>
+        </svg>
+      )},
+      'tournament': { svg: () => (
+        <svg viewBox="0 0 400 180" className="w-full h-44 rounded-xl">
+          {/* Background - indoor court feel */}
+          <rect width="400" height="180" fill="#1E293B"/>
+          {/* Stadium lights */}
+          <circle cx="80" cy="15" r="8" fill="#FACC15" opacity="0.3"/>
+          <circle cx="200" cy="10" r="10" fill="#FACC15" opacity="0.4"/>
+          <circle cx="320" cy="15" r="8" fill="#FACC15" opacity="0.3"/>
+          {/* Light beams */}
+          <path d="M80 23 L40 100 L120 100 Z" fill="#FACC15" opacity="0.03"/>
+          <path d="M200 20 L140 100 L260 100 Z" fill="#FACC15" opacity="0.04"/>
+          <path d="M320 23 L280 100 L360 100 Z" fill="#FACC15" opacity="0.03"/>
+          {/* Hard court */}
+          <rect x="50" y="85" width="300" height="90" rx="3" fill="#1565C0"/>
+          <rect x="55" y="90" width="290" height="80" rx="2" fill="#1976D2"/>
+          {/* Court lines */}
+          <line x1="200" y1="90" x2="200" y2="170" stroke="#fff" strokeWidth="2" opacity="0.9"/>
+          <rect x="90" y="90" width="220" height="80" fill="none" stroke="#fff" strokeWidth="2" opacity="0.9"/>
+          <line x1="90" y1="130" x2="310" y2="130" stroke="#fff" strokeWidth="1.5" opacity="0.7"/>
+          {/* Service boxes */}
+          <line x1="130" y1="90" x2="130" y2="130" stroke="#fff" strokeWidth="1" opacity="0.5"/>
+          <line x1="270" y1="130" x2="270" y2="170" stroke="#fff" strokeWidth="1" opacity="0.5"/>
+          {/* Net */}
+          <line x1="50" y1="130" x2="350" y2="130" stroke="#ddd" strokeWidth="2"/>
+          <rect x="48" y="126" width="4" height="10" fill="#666"/>
+          <rect x="348" y="126" width="4" height="10" fill="#666"/>
+          {/* Trophy */}
+          <rect x="175" y="38" width="50" height="6" rx="3" fill="#FACC15" opacity="0.8"/>
+          <path d="M185 44 L185 55 Q200 62 215 55 L215 44" fill="#FACC15" opacity="0.7"/>
+          <rect x="195" y="55" width="10" height="8" fill="#FACC15" opacity="0.6"/>
+          <rect x="190" y="63" width="20" height="4" rx="1" fill="#FACC15" opacity="0.8"/>
+          {/* Crowd dots */}
+          {[60,80,100,120,140,160,180,220,240,260,280,300,320,340].map((x,i) => (
+            <circle key={i} cx={x} cy={80 - Math.random()*5} r="3" fill={['#EF4444','#3B82F6','#22C55E','#FACC15','#8B5CF6','#EC4899'][i%6]} opacity="0.4"/>
+          ))}
+          {/* Label */}
+          <rect x="110" y="8" width="180" height="24" rx="12" fill="#000" opacity="0.5"/>
+          <text x="200" y="24" textAnchor="middle" fill="#fff" fontSize="11" fontFamily="Arial" fontWeight="bold">🏆 Nashville Open 2026</text>
+        </svg>
+      )},
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-light text-white">Academy Updates</h2>
+          {userRole === 'coach' && (
+            <button onClick={() => setShowNewPost(true)} className="flex items-center gap-2 px-4 py-2 bg-cyan-400 text-black rounded-lg hover:bg-cyan-300 transition-colors">
+              <Plus className="w-4 h-4" /> Post Update
+            </button>
+          )}
+        </div>
+
+        {/* New Post Modal (coach only) */}
+        {showNewPost && (
+          <div className="fixed inset-0 bg-black bg-opacity-75 z-50 overflow-y-auto">
+            <div className="min-h-full flex items-start justify-center p-4 py-8">
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 max-w-lg w-full">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-light text-white">Post Academy Update</h3>
+                  <button onClick={() => setShowNewPost(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+                </div>
+                <div className="space-y-3">
+                  <textarea value={newPost} onChange={e => setNewPost(e.target.value)} placeholder="Share an update with the academy..." className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400" rows="4" />
+                  <div className="border-2 border-dashed border-gray-700 rounded-xl p-4 text-center cursor-pointer hover:border-gray-500">
+                    <Image className="w-8 h-8 text-gray-600 mx-auto mb-1" />
+                    <span className="text-gray-500 text-sm">Add a photo</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => {
+                      if (newPost.trim()) {
+                        setUpdates(prev => [{ id: Date.now(), author: userSettings.username || 'Coach', authorRole: 'Coach', authorEmoji: '👨‍🏫', time: 'Just now', text: newPost, image: null, likes: 0, liked: false, replies: [] }, ...prev]);
+                        setNewPost('');
+                        setShowNewPost(false);
+                      }
+                    }} className="flex-1 py-3 bg-cyan-400 text-black rounded-lg font-medium">Post</button>
+                    <button onClick={() => setShowNewPost(false)} className="px-6 py-3 bg-gray-800 text-white rounded-lg">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Feed */}
+        <div className="space-y-4">
+          {updates.map(post => {
+            const imgData = post.image ? imagePlaceholders[post.image] : null;
+            const showReplies = expandedReplies[post.id];
+
+            return (
+              <div key={post.id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                {/* Author header */}
+                <div className="px-5 pt-5 pb-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-lg flex-shrink-0">
+                    {post.authorEmoji}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-medium text-sm">{post.author}</span>
+                      <span className="px-1.5 py-0.5 bg-orange-400/15 text-orange-400 text-xs rounded border border-orange-400/30">{post.authorRole}</span>
+                    </div>
+                    <div className="text-gray-500 text-xs">{post.time}</div>
+                  </div>
+                </div>
+
+                {/* Post text */}
+                <div className="px-5 pb-3">
+                  <p className="text-gray-300 text-sm leading-relaxed">{post.text}</p>
+                </div>
+
+                {/* Image */}
+                {imgData && (
+                  <div className="mx-5 mb-3 rounded-xl overflow-hidden">
+                    {imgData.svg()}
+                  </div>
+                )}
+
+                {/* Like & Reply bar */}
+                <div className="px-5 py-3 border-t border-gray-800 flex items-center gap-4">
+                  <button onClick={() => setUpdates(prev => prev.map(u => u.id === post.id ? {...u, liked: !u.liked, likes: u.liked ? u.likes - 1 : u.likes + 1} : u))} className={`flex items-center gap-1.5 text-sm ${post.liked ? 'text-red-400' : 'text-gray-500 hover:text-gray-300'}`}>
+                    <span>{post.liked ? '❤️' : '🤍'}</span>
+                    <span>{post.likes}</span>
+                  </button>
+                  <button onClick={() => setExpandedReplies(prev => ({...prev, [post.id]: !prev[post.id]}))} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300">
+                    <span>💬</span>
+                    <span>{post.replies.length} {post.replies.length === 1 ? 'reply' : 'replies'}</span>
+                  </button>
+                </div>
+
+                {/* Replies */}
+                {showReplies && (
+                  <div className="border-t border-gray-800 bg-black/30">
+                    <div className="px-5 py-3 space-y-3">
+                      {post.replies.map(reply => (
+                        <div key={reply.id} className="flex gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center text-sm flex-shrink-0">{reply.emoji}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-white text-xs font-medium">{reply.author}</span>
+                              <span className="text-gray-600 text-xs">{reply.time}</span>
+                            </div>
+                            <p className="text-gray-400 text-sm">{reply.text}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {/* Reply input */}
+                      <div className="flex gap-2 pt-2">
+                        <input value={replyText[post.id] || ''} onChange={e => setReplyText(prev => ({...prev, [post.id]: e.target.value}))} placeholder="Write a reply..." className="flex-1 px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-cyan-400" onKeyDown={e => {
+                          if (e.key === 'Enter' && replyText[post.id]?.trim()) {
+                            setUpdates(prev => prev.map(u => u.id === post.id ? {...u, replies: [...u.replies, { id: Date.now(), author: userSettings.username || 'You', emoji: userSettings.profileEmoji || '👤', text: replyText[post.id], time: 'Just now' }]} : u));
+                            setReplyText(prev => ({...prev, [post.id]: ''}));
+                          }
+                        }} />
+                        <button onClick={() => {
+                          if (replyText[post.id]?.trim()) {
+                            setUpdates(prev => prev.map(u => u.id === post.id ? {...u, replies: [...u.replies, { id: Date.now(), author: userSettings.username || 'You', emoji: userSettings.profileEmoji || '👤', text: replyText[post.id], time: 'Just now' }]} : u));
+                            setReplyText(prev => ({...prev, [post.id]: ''}));
+                          }
+                        }} className="px-3 py-2 bg-cyan-400 text-black rounded-lg"><Send className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -4756,27 +5243,27 @@ const TennisApp = () => {
           <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
             <h3 className="text-white font-light mb-3">Academy</h3>
             <div className="flex items-center gap-3 mb-4 p-3 bg-black rounded-lg border border-gray-800">
-              <div className="text-3xl">{academy.emoji}</div>
+              <div className="text-3xl">{activeAcademy.emoji}</div>
               <div>
-                <div className="text-white font-light">{academy.name}</div>
-                <div className="text-gray-500 text-xs">{academy.location}</div>
+                <div className="text-white font-light">{activeAcademy.name}</div>
+                <div className="text-gray-500 text-xs">{activeAcademy.location}</div>
               </div>
             </div>
             <div className="text-gray-500 text-xs mb-2">Academy Code</div>
             <div className="flex items-center gap-3">
               <div className="flex-1 px-4 py-3 bg-black border border-cyan-400/30 rounded-lg">
-                <div className="text-cyan-400 text-xl font-mono font-bold tracking-wider">{academy.code}</div>
+                <div className="text-cyan-400 text-xl font-mono font-bold tracking-wider">{activeAcademy.code}</div>
               </div>
-              <button onClick={() => { navigator.clipboard.writeText(academy.code); alert('Copied!'); }} className="px-4 py-3 bg-cyan-400 text-black rounded-lg font-medium">Copy</button>
+              <button onClick={() => { navigator.clipboard.writeText(activeAcademy.code); alert('Copied!'); }} className="px-4 py-3 bg-cyan-400 text-black rounded-lg font-medium">Copy</button>
             </div>
             <p className="text-gray-500 text-xs mt-2">Share with students so they can join</p>
           </div>
 
           {/* Coaches at Academy */}
           <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-            <h3 className="text-white font-light mb-3">Coaches ({academy.coaches.length})</h3>
+            <h3 className="text-white font-light mb-3">Coaches ({activeAcademy.coaches.length})</h3>
             <div className="space-y-2">
-              {academy.coaches.map(c => (
+              {activeAcademy.coaches.map(c => (
                 <div key={c.id} className="flex items-center gap-3 p-3 bg-black rounded-lg border border-gray-800">
                   <div className="text-2xl">{c.emoji}</div>
                   <div className="flex-1">
@@ -4861,6 +5348,9 @@ const TennisApp = () => {
 
     // Parent Profile - simple and clean
     if (userRole === 'parent') {
+      const [childLinked, setChildLinked] = useState(!!playerInfo.parentLinkedChild?.name);
+      const [linkCode, setLinkCode] = useState('');
+
       return (
         <div className="space-y-4">
           <h2 className="text-2xl font-light text-white">Parent Profile</h2>
@@ -4876,63 +5366,103 @@ const TennisApp = () => {
             </div>
 
             {/* Academy badge */}
-            {academy.connected && (
-              <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-cyan-400/5 rounded-lg border border-cyan-400/20">
-                <span className="text-lg">{academy.emoji}</span>
-                <div>
-                  <div className="text-cyan-400 text-sm font-medium">{academy.name}</div>
-                  <div className="text-gray-500 text-xs">{academy.location}</div>
+            {(activeAcademy.connected || activeAcademy.status === 'pending') && (
+              <div className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-lg border ${activeAcademy.connected ? 'bg-cyan-400/5 border-cyan-400/20' : 'bg-yellow-400/5 border-yellow-400/20'}`}>
+                <span className="text-lg">{activeAcademy.emoji}</span>
+                <div className="flex-1">
+                  <div className={`text-sm font-medium ${activeAcademy.connected ? 'text-cyan-400' : 'text-yellow-400'}`}>{activeAcademy.name}</div>
+                  <div className="text-gray-500 text-xs">{activeAcademy.location}</div>
+                </div>
+                {activeAcademy.connected ? (
+                  <span className="px-2 py-0.5 bg-cyan-400/10 text-cyan-400 text-xs rounded-full border border-cyan-400/30">✓ Member</span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-yellow-400/10 text-yellow-400 text-xs rounded-full border border-yellow-400/30">⏳ Pending</span>
+                )}
+              </div>
+            )}
+
+            {/* Connect to child - not linked yet */}
+            {!childLinked && (
+              <div className="p-4 bg-purple-400/5 rounded-xl border border-purple-400/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">👦</span>
+                  <div>
+                    <div className="text-purple-400 text-sm font-medium">Connect to Your Child</div>
+                    <div className="text-gray-500 text-xs">Enter your child's Player Code from their profile</div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={linkCode}
+                    onChange={(e) => setLinkCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. PLAYER-X7K9M"
+                    className="flex-1 px-3 py-2.5 bg-black border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-purple-400 font-mono"
+                  />
+                  <button onClick={() => {
+                    if (linkCode.trim()) {
+                      setPlayerInfo(prev => ({...prev, parentLinkedChild: { name: playerInfo.name || 'Player', playerCode: linkCode, id: 1 }}));
+                      setChildLinked(true);
+                      alert('Connected to your child\'s account!');
+                    }
+                  }} className="px-4 py-2.5 bg-purple-500 text-white rounded-lg text-sm font-medium">Link</button>
                 </div>
               </div>
             )}
 
-            {/* Linked child */}
-            <div className="p-3 bg-black/40 rounded-xl">
-              <div className="text-gray-500 text-xs mb-1">Linked Player</div>
-              <div className="flex items-center gap-2">
-                <span className="text-lg">😀</span>
-                <div>
-                  <div className="text-white text-sm">{playerInfo.parentLinkedChild?.name || 'Emma Johnson'}</div>
-                  <div className="text-gray-500 text-xs">Code: {playerInfo.parentLinkedChild?.playerCode || 'PLAYER-DEMO1'}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Child's Quick Stats */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-            <h3 className="text-white font-light mb-3">Child's Stats</h3>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center p-3 bg-black/40 rounded-xl">
-                <div className="text-2xl font-light text-cyan-400">{parseFloat(playerInfo.currentUTR) || 3.52}</div>
-                <div className="text-xs text-gray-500">UTR</div>
-              </div>
-              <div className="text-center p-3 bg-black/40 rounded-xl">
-                <div className="text-2xl font-light text-green-400">{matches.length}</div>
-                <div className="text-xs text-gray-500">Matches</div>
-              </div>
-              <div className="text-center p-3 bg-black/40 rounded-xl">
-                <div className="text-2xl font-light text-blue-400">{(practices.reduce((sum, p) => sum + (p.duration || 0), 0) / 60).toFixed(1)}h</div>
-                <div className="text-xs text-gray-500">Practice</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Academy Coaches */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
-            <h3 className="text-white font-light mb-3">Academy Coaches</h3>
-            <div className="space-y-2">
-              {academy.coaches.map(c => (
-                <div key={c.id} className="flex items-center gap-3 p-3 bg-black rounded-lg border border-gray-800">
-                  <div className="text-2xl">{c.emoji}</div>
+            {/* Child linked */}
+            {childLinked && (
+              <div className="p-3 bg-green-400/5 rounded-xl border border-green-400/20">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">😀</span>
                   <div className="flex-1">
-                    <div className="text-white text-sm">{c.name}</div>
-                    <div className="text-gray-500 text-xs">{c.role}</div>
+                    <div className="text-white text-sm font-medium">{playerInfo.parentLinkedChild?.name || 'Your Child'}</div>
+                    <div className="text-gray-500 text-xs">Player Code: {playerInfo.parentLinkedChild?.playerCode || linkCode}</div>
                   </div>
+                  <span className="px-2 py-0.5 bg-green-400/10 text-green-400 text-xs rounded-full border border-green-400/30">✓ Linked</span>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
+
+          {/* Child's Quick Stats - only when linked */}
+          {childLinked && (
+            <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+              <h3 className="text-white font-light mb-3">Child's Stats</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center p-3 bg-black/40 rounded-xl">
+                  <div className="text-2xl font-light text-cyan-400">{parseFloat(playerInfo.currentUTR) || 3.52}</div>
+                  <div className="text-xs text-gray-500">UTR</div>
+                </div>
+                <div className="text-center p-3 bg-black/40 rounded-xl">
+                  <div className="text-2xl font-light text-green-400">{matches.length}</div>
+                  <div className="text-xs text-gray-500">Matches</div>
+                </div>
+                <div className="text-center p-3 bg-black/40 rounded-xl">
+                  <div className="text-2xl font-light text-blue-400">{(practices.reduce((sum, p) => sum + (p.duration || 0), 0) / 60).toFixed(1)}h</div>
+                  <div className="text-xs text-gray-500">Practice</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Academy Coaches - only when connected to academy */}
+          {activeAcademy.connected && (
+            <div className="bg-gray-900 rounded-xl border border-gray-800 p-5">
+              <h3 className="text-white font-light mb-3">Academy Coaches</h3>
+              <div className="space-y-2">
+                {activeAcademy.coaches.map(c => (
+                  <div key={c.id} className="flex items-center gap-3 p-3 bg-black rounded-lg border border-gray-800">
+                    <div className="text-2xl">{c.emoji}</div>
+                    <div className="flex-1">
+                      <div className="text-white text-sm">{c.name}</div>
+                      <div className="text-gray-500 text-xs">{c.role}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -4977,13 +5507,18 @@ const TennisApp = () => {
             </div>
 
             {/* Academy badge */}
-            {academy.connected && (
-              <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-cyan-400/5 rounded-lg border border-cyan-400/20">
-                <span className="text-lg">{academy.emoji}</span>
-                <div>
-                  <div className="text-cyan-400 text-sm font-medium">{academy.name}</div>
-                  <div className="text-gray-500 text-xs">{academy.location}</div>
+            {(activeAcademy.connected || activeAcademy.status === 'pending') && (
+              <div className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-lg border ${activeAcademy.connected ? 'bg-cyan-400/5 border-cyan-400/20' : 'bg-yellow-400/5 border-yellow-400/20'}`}>
+                <span className="text-lg">{activeAcademy.emoji}</span>
+                <div className="flex-1">
+                  <div className={`text-sm font-medium ${activeAcademy.connected ? 'text-cyan-400' : 'text-yellow-400'}`}>{activeAcademy.name}</div>
+                  <div className="text-gray-500 text-xs">{activeAcademy.location}</div>
                 </div>
+                {activeAcademy.connected ? (
+                  <span className="px-2 py-0.5 bg-cyan-400/10 text-cyan-400 text-xs rounded-full border border-cyan-400/30">✓ Member</span>
+                ) : (
+                  <span className="px-2 py-0.5 bg-yellow-400/10 text-yellow-400 text-xs rounded-full border border-yellow-400/30">⏳ Pending</span>
+                )}
               </div>
             )}
 
@@ -5830,6 +6365,7 @@ const TennisApp = () => {
           {activeView === 'notes' && <CoachNotes />}
           {activeView === 'chat' && <TeamChat />}
           {activeView === 'media' && <MediaView />}
+          {activeView === 'updates' && <UpdatesView />}
           {activeView === 'students' && <StudentsView />}
           {activeView === 'notifications' && <NotificationsView />}
           {activeView === 'settings' && <SettingsView />}
@@ -5866,7 +6402,7 @@ const TennisApp = () => {
                 <label className="block text-gray-400 text-sm mb-2">Date</label>
                 <input
                   type="date"
-                  value={newPractice.date || new Date().toISOString().split('T')[0]}
+                  value={newPractice.date}
                   onChange={(e) => setNewPractice({...newPractice, date: e.target.value})}
                   className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white focus:outline-none focus:border-cyan-400 cursor-pointer"
                   style={{ colorScheme: 'dark' }}
