@@ -1068,6 +1068,7 @@ const TennisApp = () => {
               
               {/* Section: Schedule */}
               <div className="pt-4 pb-1 px-2"><span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Schedule</span></div>
+              {userRole === 'coach' && <SidebarItem icon={<Calendar />} label="Calendar" view="calendar" />}
               <SidebarItem icon={<Clock />} label={userRole === 'coach' ? 'Scheduler' : userRole === 'parent' ? "Child's Schedule" : 'My Schedule'} view="scheduler" />
             </>
           )}
